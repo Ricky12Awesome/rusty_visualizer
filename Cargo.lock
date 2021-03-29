@@ -2510,6 +2510,7 @@ version = "0.1.0"
 dependencies = [
  "conrod_core 0.71.0",
  "cpal",
+ "fnv",
  "nannou",
  "num-complex 0.4.0",
  "num-traits 0.2.14",

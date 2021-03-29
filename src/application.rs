@@ -10,8 +10,6 @@ use nannou::app::Builder;
 pub trait Application {
   fn init(app: &App) -> Self;
 
-  fn view(app: &App, state: &Self, frame: Frame) {}
-
   fn on_event(app: &App, state: &mut Self, event: Event) {
     match event {
       Event::WindowEvent { id: _id, simple: Some(event), .. } => Self::on_window_event(app, state, event),
@@ -71,6 +69,8 @@ pub trait Application {
   fn on_focused(app: &App, state: &mut Self) {}
   fn on_unfocused(app: &App, state: &mut Self) {}
   fn on_closed(app: &App, state: &mut Self) {}
+
+  fn view(app: &App, state: &Self, frame: Frame) {}
 }
 
 pub fn build_application_from<App : 'static + Application>() -> Builder<App, Event> {

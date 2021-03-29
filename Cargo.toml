@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 cpal = "0.13.2"
+fnv = "1.0"
 num-complex = "0.4.0"
 num-traits = "0.2.14"
 conrod_core = "0.71"
