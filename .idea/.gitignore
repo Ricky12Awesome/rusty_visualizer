@@ -2,4 +2,4 @@
 /shelf/
 /workspace.xml
 # CodeStream ignored files
-/../../rusty_visualizer\.idea/codestream.xml
+/codestream.xml
