@@ -4,17 +4,20 @@ use std::path::Path;
 
 use serde::Deserialize;
 use serde::Serialize;
+use crate::audio::AudioMode;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Settings {
-  device: String
+  pub device: String,
+  pub mode: AudioMode,
 }
 
 #[allow(unused_variables, dead_code)]
 impl Settings {
   pub fn new<S: Into<String>>(device: S) -> Self {
     Settings {
-      device: device.into()
+      device: device.into(),
+      mode: AudioMode::Wave,
     }
   }
 

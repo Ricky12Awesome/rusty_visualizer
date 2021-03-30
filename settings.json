@@ -1,3 +1,6 @@
 {
-  "device": "loopback"
+  "device": "loopback",
+  "mode": {
+    "FFT": "FFT2048"
+  }
 }
