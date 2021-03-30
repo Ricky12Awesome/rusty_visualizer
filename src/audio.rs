@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use cpal::{Device, Host, InputCallbackInfo, Stream};
-use cpal::traits::{DeviceTrait, HostTrait};
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -43,6 +43,8 @@ impl Default for AudioData {
   }
 }
 
+unsafe impl Send for Audio {}
+
 pub struct Audio {
   pub host: Host,
   pub mode: Arc<Mutex<AudioMode>>,
@@ -68,7 +70,7 @@ impl Audio {
   }
 }
 
-pub trait AudioDevice {
+pub trait AudioDevice : Send {
   fn get_device(self, host: &Host) -> Option<Device>;
 }
 
@@ -96,36 +98,40 @@ impl AudioDevice for Device {
   }
 }
 
-unsafe impl Send for Audio {}
-
 impl Audio {
   pub fn change_mode(&mut self, new_mode: AudioMode) {
     *self.mode.lock().unwrap() = new_mode;
   }
 
   pub fn change_device<D: AudioDevice>(&mut self, new_device: D) {
-    match new_device.get_device(&self.host) {
-      None => {
-        self.stream = None;
-        self.receiver = None;
-      }
-      Some(device) => {
-        let config = device.default_output_config().unwrap();
-        let sender = Arc::new(Mutex::new(AudioData::default()));
-        let receiver = sender.clone();
-        let mode = (&self).mode.clone();
+    crossbeam_utils::thread::scope(|s| {
+      s.spawn(|_| {
+        match new_device.get_device(&self.host) {
+          None => {
+            self.stream = None;
+            self.receiver = None;
+          }
+          Some(device) => {
+            let config = device.default_output_config().unwrap();
+            let sender = Arc::new(Mutex::new(AudioData::default()));
+            let receiver = sender.clone();
+            let mode = (&self).mode.clone();
 
-        let stream = device.build_input_stream(
-          &config.config(),
-          move |data: &[f32], _: &InputCallbackInfo| {
-            *sender.lock().unwrap() = AudioData::new(data, *mode.lock().unwrap());
-          },
-          move |err| { println!("{:?}", err) },
-        ).unwrap();
+            let stream = device.build_input_stream(
+              &config.config(),
+              move |data: &[f32], _: &InputCallbackInfo| {
+                *sender.lock().unwrap() = AudioData::new(data, *mode.lock().unwrap());
+              },
+              move |err| { println!("{:?}", err) },
+            ).unwrap();
 
-        self.stream = Some(stream);
-        self.receiver = Some(receiver);
-      }
-    }
+            stream.play().unwrap();
+
+            self.stream = Some(stream);
+            self.receiver = Some(receiver);
+          }
+        }
+      });
+    }).unwrap();
   }
 }
