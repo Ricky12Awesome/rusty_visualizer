@@ -53,6 +53,7 @@ impl Application for State {
     }
   }
 
+
   fn on_update(_app: &App, state: &mut Self, _update: Update) {
     let ui = &mut state.ui.set_widgets();
 
@@ -103,11 +104,20 @@ impl Application for State {
       let offset_width = -(state.size.x / 2f32);
       let gap = state.size.x / len as f32;
 
-      let color = hsl(state.hue, state.saturation, state.lightness);
-      let points = (0..len).map(|i| {
-        let point = pt2(offset_width + (i as f32 * gap), audio[i] * 500f32);
+      state.hue += audio.iter().sum::<f32>() / 1000f32;
 
-        (point, color)
+      if state.hue >= 1.0 {
+        state.hue = 0.0;
+      }
+
+      let color = hsl(state.hue, state.saturation, state.lightness);
+
+      let points = (0..len).map(|i| {
+        let color = &color;
+        let if32 = i as f32;
+        let point = pt2(offset_width + (if32 * gap), audio[i] * 500f32);
+
+        (point, hsl(color.hue.to_degrees() / 360f32 + if32 / len as f32, color.saturation, color.lightness))
       });
 
       state.points = points.collect();
@@ -133,7 +143,7 @@ impl Application for State {
     draw.polyline().weight(2.0).points_colored(state.points.clone());
 
     draw.to_frame(app, &frame).unwrap();
-    state.ui.draw_to_frame(app, &frame).unwrap();
+    // state.ui.draw_to_frame(app, &frame).unwrap();
   }
 }
 
