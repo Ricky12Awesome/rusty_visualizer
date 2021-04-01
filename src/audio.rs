@@ -5,9 +5,11 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::fft::FFTSize;
+use crate::fft::{FFTSize, process_fft, FFTMode};
 use crate::settings::Settings;
 use std::ops::Deref;
+use num_complex::Complex32;
+use num_traits::{Zero, ToPrimitive};
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub enum AudioMode {
@@ -15,15 +17,79 @@ pub enum AudioMode {
   Wave,
 }
 
+impl AudioMode {
+  pub const ALL: &'static [AudioMode] = &[
+    AudioMode::Wave,
+    AudioMode::FFT(FFTSize::FFT16),
+    AudioMode::FFT(FFTSize::FFT32),
+    AudioMode::FFT(FFTSize::FFT64),
+    AudioMode::FFT(FFTSize::FFT128),
+    AudioMode::FFT(FFTSize::FFT256),
+    AudioMode::FFT(FFTSize::FFT512),
+    AudioMode::FFT(FFTSize::FFT1024),
+    AudioMode::FFT(FFTSize::FFT2048),
+    AudioMode::FFT(FFTSize::FFT4096),
+    AudioMode::FFT(FFTSize::FFT8192),
+    AudioMode::FFT(FFTSize::FFT16384),
+  ];
+
+  pub fn all_named() -> Vec<String> {
+    Self::ALL.iter()
+      .map(|it| {
+        match it {
+          AudioMode::Wave => format!("Wave"),
+          AudioMode::FFT(size) => format!("FFT {}", *size as usize),
+        }
+      })
+      .collect()
+  }
+}
+
 pub struct AudioData {
   pub data: Vec<f32>,
+  pub sum: f32,
   pub mode: AudioMode,
 }
 
 impl AudioData {
   fn new(data: &[f32], mode: AudioMode) -> Self {
+    let mut sum = 0.0f32;
+
+    let process = |it: f32| {
+      sum += it;
+      it
+    };
+
+    let data = match mode {
+      AudioMode::Wave => {
+        Vec::from(data)
+          .iter()
+          .map(|it| *it)
+          .map(process)
+          .collect()
+      }
+      AudioMode::FFT(size) => {
+        let size_v = size as usize;
+        let len = data.len() + size_v + 1;
+        let mut buffer = vec![Complex32::zero(); len];
+
+        for i in 0..data.len() {
+          buffer[i] = Complex32::from(data[i]);
+        }
+
+        process_fft(&mut buffer, &size, FFTMode::Backward);
+
+        buffer.iter()
+          .map(|it| (it.re * it.re + it.im * it.im).sqrt().sqrt() / 10f32)
+          .take(size_v)
+          .map(process)
+          .collect()
+      }
+    };
+
     AudioData {
-      data: Vec::from(data),
+      data,
+      sum,
       mode,
     }
   }
@@ -70,7 +136,7 @@ impl Audio {
   }
 }
 
-pub trait AudioDevice : Send {
+pub trait AudioDevice: Send {
   fn get_device(self, host: &Host) -> Option<Device>;
 }
 
