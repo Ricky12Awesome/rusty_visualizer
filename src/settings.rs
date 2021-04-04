@@ -4,6 +4,7 @@ use std::path::Path;
 
 use serde::Deserialize;
 use serde::Serialize;
+
 use crate::audio::AudioMode;
 
 #[derive(Clone, Serialize, Deserialize)]

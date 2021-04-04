@@ -1,10 +1,9 @@
 use std::path::PathBuf;
 
 use nannou::App;
+use nannou::app::Builder;
 use nannou::prelude::*;
 use nannou::winit::event::{DeviceEvent, VirtualKeyCode};
-use nannou::app::Builder;
-
 
 #[allow(unused_variables)]
 pub trait ApplicationDelegate {
@@ -56,14 +55,14 @@ pub trait ApplicationDelegate {
   fn on_unfocused(&mut self, app: &App) {}
   fn on_closed(&mut self, app: &App) {}
 
-  fn view(&self, app: &App, frame: Frame) {}
+  fn on_view(&self, app: &App, frame: Frame) {}
 }
 
 pub trait Application: ApplicationDelegate {
   fn init(app: &App) -> Self;
   fn get_delegate(&self) -> Option<&'static mut dyn ApplicationDelegate> { None }
 
-  fn on_event(app: &App, state: &mut Self, event: Event) {
+  fn event(app: &App, state: &mut Self, event: Event) {
     let delegate = state.get_delegate();
 
     match event {
@@ -101,15 +100,15 @@ pub trait Application: ApplicationDelegate {
     }
   }
 
-  fn on_view(app: &App, state: &Self, frame: Frame) {
-    ApplicationDelegate::view(state, app, frame)
+  fn view(app: &App, state: &Self, frame: Frame) {
+    ApplicationDelegate::on_view(state, app, frame)
   }
 }
 
 pub fn build_application_from<App: 'static + Application>() -> Builder<App, Event> {
   nannou::app(App::init)
-    .event(App::on_event)
-    .simple_window(App::on_view)
+    .event(App::event)
+    .simple_window(App::view)
 }
 
 #[allow(dead_code)]

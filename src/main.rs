@@ -1,11 +1,12 @@
+use std::ops::Deref;
+
 use nannou::prelude::*;
 use nannou::ui::prelude::*;
 
-use crate::application::{Application, build_application_from, ApplicationDelegate};
-use crate::settings::Settings;
+use crate::application::{Application, ApplicationDelegate, build_application_from};
 use crate::audio::{Audio, AudioMode};
-use std::ops::Deref;
 use crate::fft::FFTSize;
+use crate::settings::Settings;
 
 mod application;
 mod visualizer;
@@ -125,6 +126,25 @@ impl ApplicationDelegate for State {
   fn on_resize(&mut self, _app: &App, new_size: Vector2) {
     self.size = new_size;
   }
+
+  fn on_view(&self, app: &App, frame: Frame) {
+    let draw = app.draw();
+
+    draw.background().hsl(0.0, 0.0, 0.0125);
+
+    draw.polyline().weight(2.0).points_colored(self.points.clone()).finish();
+
+    for (Point2 { x, y }, color) in self.points.clone() {
+      draw.rect()
+        .x_y(x, 0.0)
+        .w_h(self.gap, y / 1.5)
+        .color(color)
+        .finish()
+    }
+
+    draw.to_frame(app, &frame).unwrap();
+    self.ui.draw_to_frame(app, &frame).unwrap();
+  }
 }
 
 impl Application for State {
@@ -148,25 +168,6 @@ impl Application for State {
       hue_speed: 0.05,
       gap: 1.0,
     }
-  }
-
-  fn on_view(app: &App, state: &Self, frame: Frame) {
-    let draw = app.draw();
-
-    draw.background().hsl(0.0, 0.0, 0.0125);
-
-    draw.polyline().weight(2.0).points_colored(state.points.clone()).finish();
-
-    for (Point2 { x, y }, color) in state.points.clone() {
-      draw.rect()
-        .x_y(x, 0.0)
-        .w_h(state.gap, y / 1.5)
-        .color(color)
-        .finish()
-    }
-
-    draw.to_frame(app, &frame).unwrap();
-    state.ui.draw_to_frame(app, &frame).unwrap();
   }
 }
 

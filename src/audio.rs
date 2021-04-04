@@ -1,15 +1,15 @@
+use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 
 use cpal::{Device, Host, InputCallbackInfo, Stream};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use num_complex::Complex32;
+use num_traits::Zero;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::fft::{FFTSize, process_fft, FFTMode};
+use crate::fft::{FFTMode, FFTSize, process_fft};
 use crate::settings::Settings;
-use std::ops::Deref;
-use num_complex::Complex32;
-use num_traits::{Zero, ToPrimitive};
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub enum AudioMode {
