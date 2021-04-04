@@ -1,4 +1,3 @@
-
 use std::path::PathBuf;
 
 use nannou::App;
@@ -6,83 +5,114 @@ use nannou::prelude::*;
 use nannou::winit::event::{DeviceEvent, VirtualKeyCode};
 use nannou::app::Builder;
 
+
 #[allow(unused_variables)]
-pub trait Application {
-  fn init(app: &App) -> Self;
-
-  fn on_event(app: &App, state: &mut Self, event: Event) {
+pub trait ApplicationDelegate {
+  fn on_window_event(&mut self, app: &App, event: WindowEvent) {
     match event {
-      Event::WindowEvent { id: _id, simple: Some(event), .. } => Self::on_window_event(app, state, event),
-      Event::WindowEvent { id: _, simple: None, .. } => {}
-      Event::DeviceEvent(_, event) => Self::on_device_event(app, state, event),
-      Event::Update(update) => Self::on_update(app, state, update),
-      Event::Suspended => Self::on_suspend(app, state),
-      Event::Resumed => Self::on_resumed(app, state),
+      Moved(position) => self.on_window_moved(app, position),
+      KeyPressed(key) => self.on_key_pressed(app, key),
+      KeyReleased(key) => self.on_key_released(app, key),
+      MouseMoved(position) => self.on_mouse_moved(app, position),
+      MousePressed(button) => self.on_mouse_pressed(app, button),
+      MouseReleased(button) => self.on_mouse_released(app, button),
+      MouseEntered => self.on_mouse_entered(app),
+      MouseExited => self.on_mouse_exited(app),
+      MouseWheel(data, phase) => self.on_mouse_wheal(app, data, phase),
+      Resized(new_size) => self.on_resize(app, new_size),
+      HoveredFile(event) => self.on_hovered_file(app, event),
+      DroppedFile(path) => self.on_dropped_file(app, path),
+      HoveredFileCancelled => self.on_hovered_file_cancelled(app),
+      Touch(event) => self.on_touch(app, event),
+      TouchPressure(pressure) => self.on_touch_pressure(app, pressure),
+      Focused => self.on_focused(app),
+      Unfocused => self.on_unfocused(app),
+      Closed => self.on_closed(app),
     }
   }
 
-  fn on_window_event(app: &App, state: &mut Self, event: WindowEvent) {
-    match event {
-      Moved(position) => Self::on_window_moved(app, state, position),
-      KeyPressed(key) => Self::on_key_pressed(app, state, key),
-      KeyReleased(key) => Self::on_key_released(app, state, key),
-      MouseMoved(position) => Self::on_mouse_moved(app, state, position),
-      MousePressed(button) => Self::on_mouse_pressed(app, state, button),
-      MouseReleased(button) => Self::on_mouse_released(app, state, button),
-      MouseEntered => Self::on_mouse_entered(app, state),
-      MouseExited => Self::on_mouse_exited(app, state),
-      MouseWheel(data, phase) => Self::on_mouse_wheal(app, state, data, phase),
-      Resized(new_size) => Self::on_resize(app, state, new_size),
-      HoveredFile(event) => Self::on_hovered_file(app, state, event),
-      DroppedFile(path) => Self::on_dropped_file(app, state, path),
-      HoveredFileCancelled => Self::on_hovered_file_cancelled(app, state),
-      Touch(event) => Self::on_touch(app, state, event),
-      TouchPressure(pressure) => Self::on_touch_pressure(app, state, pressure),
-      Focused => Self::on_focused(app, state),
-      Unfocused => Self::on_unfocused(app, state),
-      Closed => Self::on_closed(app, state)
-    }
-  }
+  fn on_device_event(&mut self, app: &App, event: DeviceEvent) {}
 
-  fn on_device_event(app: &App, state: &mut Self, event: DeviceEvent) {}
+  fn on_update(&mut self, app: &App, update: Update) {}
+  fn on_suspend(&mut self, app: &App) {}
+  fn on_resumed(&mut self, app: &App) {}
 
-  fn on_update(app: &App, state: &mut Self, update: Update) {}
-  fn on_suspend(app: &App, state: &mut Self) {}
-  fn on_resumed(app: &App, state: &mut Self) {}
+  fn on_window_moved(&mut self, app: &App, key: Point2) {}
+  fn on_key_pressed(&mut self, app: &App, key: VirtualKeyCode) {}
+  fn on_key_released(&mut self, app: &App, key: VirtualKeyCode) {}
+  fn on_mouse_moved(&mut self, app: &App, position: Point2) {}
+  fn on_mouse_pressed(&mut self, app: &App, button: MouseButton) {}
+  fn on_mouse_released(&mut self, app: &App, button: MouseButton) {}
+  fn on_mouse_entered(&mut self, app: &App) {}
+  fn on_mouse_exited(&mut self, app: &App) {}
+  fn on_mouse_wheal(&mut self, app: &App, data: MouseScrollDelta, phase: TouchPhase) {}
+  fn on_resize(&mut self, app: &App, new_size: Vector2) {}
+  fn on_hovered_file(&mut self, app: &App, path: PathBuf) {}
+  fn on_dropped_file(&mut self, app: &App, path: PathBuf) {}
+  fn on_hovered_file_cancelled(&mut self, app: &App) {}
+  fn on_touch(&mut self, app: &App, event: TouchEvent) {}
+  fn on_touch_pressure(&mut self, app: &App, pressure: TouchpadPressure) {}
+  fn on_focused(&mut self, app: &App) {}
+  fn on_unfocused(&mut self, app: &App) {}
+  fn on_closed(&mut self, app: &App) {}
 
-  // Window Events
-  fn on_window_moved(app: &App, state: &mut Self, key: Point2) {}
-  fn on_key_pressed(app: &App, state: &mut Self, key: VirtualKeyCode) {}
-  fn on_key_released(app: &App, state: &mut Self, key: VirtualKeyCode) {}
-  fn on_mouse_moved(app: &App, state: &mut Self, position: Point2) {}
-  fn on_mouse_pressed(app: &App, state: &mut Self, button: MouseButton) {}
-  fn on_mouse_released(app: &App, state: &mut Self, button: MouseButton) {}
-  fn on_mouse_entered(app: &App, state: &mut Self) {}
-  fn on_mouse_exited(app: &App, state: &mut Self) {}
-  fn on_mouse_wheal(app: &App, state: &mut Self, data: MouseScrollDelta, phase: TouchPhase) {}
-  fn on_resize(app: &App, state: &mut Self, new_size: Vector2) {}
-  fn on_hovered_file(app: &App, state: &mut Self, path: PathBuf) {}
-  fn on_dropped_file(app: &App, state: &mut Self, path: PathBuf) {}
-  fn on_hovered_file_cancelled(app: &App, state: &mut Self) {}
-  fn on_touch(app: &App, state: &mut Self, event: TouchEvent) {}
-  fn on_touch_pressure(app: &App, state: &mut Self, pressure: TouchpadPressure) {}
-  fn on_focused(app: &App, state: &mut Self) {}
-  fn on_unfocused(app: &App, state: &mut Self) {}
-  fn on_closed(app: &App, state: &mut Self) {}
-
-  fn view(app: &App, state: &Self, frame: Frame) {}
+  fn view(&self, app: &App, frame: Frame) {}
 }
 
-pub fn build_application_from<App : 'static + Application>() -> Builder<App, Event> {
+pub trait Application: ApplicationDelegate {
+  fn init(app: &App) -> Self;
+  fn get_delegate(&self) -> Option<&'static mut dyn ApplicationDelegate> { None }
+
+  fn on_event(app: &App, state: &mut Self, event: Event) {
+    let delegate = state.get_delegate();
+
+    match event {
+      Event::WindowEvent { id: _, simple: None, .. } => {}
+      Event::WindowEvent { id: _id, simple: Some(event), .. } => {
+        state.on_window_event(app, event.clone());
+        if let Some(delegate) = delegate {
+          delegate.on_window_event(app, event);
+        }
+      }
+      Event::DeviceEvent(_, event) => {
+        state.on_device_event(app, event.clone());
+        if let Some(delegate) = delegate {
+          delegate.on_device_event(app, event);
+        }
+      }
+      Event::Update(update) => {
+        state.on_update(app, update.clone());
+        if let Some(delegate) = delegate {
+          delegate.on_update(app, update);
+        }
+      }
+      Event::Suspended => {
+        state.on_suspend(app);
+        if let Some(delegate) = delegate {
+          delegate.on_suspend(app);
+        }
+      }
+      Event::Resumed => {
+        state.on_resumed(app);
+        if let Some(delegate) = delegate {
+          delegate.on_resumed(app);
+        }
+      }
+    }
+  }
+
+  fn on_view(app: &App, state: &Self, frame: Frame) {
+    ApplicationDelegate::view(state, app, frame)
+  }
+}
+
+pub fn build_application_from<App: 'static + Application>() -> Builder<App, Event> {
   nannou::app(App::init)
     .event(App::on_event)
-    .simple_window(App::view)
+    .simple_window(App::on_view)
 }
 
 #[allow(dead_code)]
-pub fn run_application<App : 'static + Application>() {
-  nannou::app(App::init)
-    .event(App::on_event)
-    .simple_window(App::view)
-    .run();
+pub fn run_application<App: 'static + Application>() {
+  build_application_from::<App>().run()
 }

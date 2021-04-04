@@ -1,13 +1,14 @@
 use nannou::prelude::*;
 use nannou::ui::prelude::*;
 
-use crate::application::{Application, build_application_from};
+use crate::application::{Application, build_application_from, ApplicationDelegate};
 use crate::settings::Settings;
 use crate::audio::{Audio, AudioMode};
 use std::ops::Deref;
 use crate::fft::FFTSize;
 
 mod application;
+mod visualizer;
 mod settings;
 mod audio;
 mod util;
@@ -36,6 +37,96 @@ widget_ids! {
   }
 }
 
+impl ApplicationDelegate for State {
+  fn on_update(&mut self, _app: &App, _update: Update) {
+    let ui = &mut self.ui.set_widgets();
+
+    let slider = |val: f32, min: f32, max: f32| {
+      widget::Slider::new(val, min, max)
+        .w_h(400.0, 20.0)
+        .label_font_size(15)
+        .rgb(0.3, 0.3, 0.3)
+        .label_rgb(1.0, 1.0, 1.0)
+        .border(0.0)
+    };
+
+    for value in slider(self.hue, 0.0, 1.0)
+      .top_right_with_margin(5.0)
+      .label("Hue")
+      .set(self.ids.hue, ui)
+    {
+      self.hue = value
+    }
+
+    for value in slider(self.hue_speed, 0.05, 5.0)
+      .down(5.0)
+      .label("Hue Speed (Epilepsy warning)")
+      .set(self.ids.hue_speed, ui)
+    {
+      self.hue_speed = value
+    }
+
+    for value in slider(self.saturation, 0.0, 1.0)
+      .down(5.0)
+      .label("Saturation")
+      .set(self.ids.saturation, ui)
+    {
+      self.saturation = value
+    }
+
+    for value in slider(self.lightness, 0.0, 1.0)
+      .down(5.0)
+      .label("Lightness")
+      .set(self.ids.lightness, ui)
+    {
+      self.lightness = value
+    }
+
+    if let Some(index) = widget::DropDownList::new(&AudioMode::all_named(), None)
+      .down(5.0)
+      .label("Select Mode")
+      .w_h(400.0, 20.0)
+      .label_font_size(15)
+      .rgb(0.3, 0.3, 0.3)
+      .label_rgb(1.0, 1.0, 1.0)
+      .border(0.0)
+      .set(self.ids.select_audio_mode, ui)
+    {
+      self.audio.change_mode(AudioMode::ALL[index]);
+    }
+
+    if let Some(receiver) = &self.audio.receiver {
+      let audio = receiver.lock().unwrap();
+      let len = audio.data.len();
+      let offset_width = -(self.size.x / 2f32);
+      let gap = self.size.x / len as f32;
+
+      self.hue += (audio.sum * self.hue_speed) / 10000f32;
+
+      if self.hue >= 1.0 {
+        self.hue = 0.0;
+      }
+
+      let color = hsl(self.hue, self.saturation, self.lightness);
+
+      let points = (0..len).map(|i| {
+        let color = &color;
+        let if32 = i as f32;
+        let point = pt2(offset_width + (if32 * gap), audio[i] * 500f32);
+
+        (point, hsl(color.hue.to_degrees() / 360f32 + if32 / len as f32, color.saturation, color.lightness))
+      });
+
+      self.points = points.collect();
+      self.gap = gap;
+    }
+  }
+
+  fn on_resize(&mut self, _app: &App, new_size: Vector2) {
+    self.size = new_size;
+  }
+}
+
 impl Application for State {
   fn init(app: &App) -> Self {
     let settings = Settings::load_default();
@@ -59,96 +150,7 @@ impl Application for State {
     }
   }
 
-
-  fn on_update(_app: &App, state: &mut Self, _update: Update) {
-    let ui = &mut state.ui.set_widgets();
-
-    let slider = |val: f32, min: f32, max: f32| {
-      widget::Slider::new(val, min, max)
-        .w_h(400.0, 20.0)
-        .label_font_size(15)
-        .rgb(0.3, 0.3, 0.3)
-        .label_rgb(1.0, 1.0, 1.0)
-        .border(0.0)
-    };
-
-    for value in slider(state.hue, 0.0, 1.0)
-      .top_right_with_margin(5.0)
-      .label("Hue")
-      .set(state.ids.hue, ui)
-    {
-      state.hue = value
-    }
-
-    for value in slider(state.hue_speed, 0.05, 5.0)
-      .down(5.0)
-      .label("Hue Speed (Epilepsy warning)")
-      .set(state.ids.hue_speed, ui)
-    {
-      state.hue_speed = value
-    }
-
-    for value in slider(state.saturation, 0.0, 1.0)
-      .down(5.0)
-      .label("Saturation")
-      .set(state.ids.saturation, ui)
-    {
-      state.saturation = value
-    }
-
-    for value in slider(state.lightness, 0.0, 1.0)
-      .down(5.0)
-      .label("Lightness")
-      .set(state.ids.lightness, ui)
-    {
-      state.lightness = value
-    }
-
-    if let Some(index) = widget::DropDownList::new(&AudioMode::all_named(), None)
-      .down(5.0)
-      .label("Select Mode")
-      .w_h(400.0, 20.0)
-      .label_font_size(15)
-      .rgb(0.3, 0.3, 0.3)
-      .label_rgb(1.0, 1.0, 1.0)
-      .border(0.0)
-      .set(state.ids.select_audio_mode, ui)
-    {
-      state.audio.change_mode(AudioMode::ALL[index]);
-    }
-
-    if let Some(receiver) = &state.audio.receiver {
-      let audio = receiver.lock().unwrap();
-      let len = audio.data.len();
-      let offset_width = -(state.size.x / 2f32);
-      let gap = state.size.x / len as f32;
-
-      state.hue += (audio.sum * state.hue_speed) / 10000f32;
-
-      if state.hue >= 1.0 {
-        state.hue = 0.0;
-      }
-
-      let color = hsl(state.hue, state.saturation, state.lightness);
-
-      let points = (0..len).map(|i| {
-        let color = &color;
-        let if32 = i as f32;
-        let point = pt2(offset_width + (if32 * gap), audio[i] * 500f32);
-
-        (point, hsl(color.hue.to_degrees() / 360f32 + if32 / len as f32, color.saturation, color.lightness))
-      });
-
-      state.points = points.collect();
-      state.gap = gap;
-    }
-  }
-
-  fn on_resize(_app: &App, state: &mut Self, new_size: Vector2<f32>) {
-    state.size = new_size;
-  }
-
-  fn view(app: &App, state: &Self, frame: Frame) {
+  fn on_view(app: &App, state: &Self, frame: Frame) {
     let draw = app.draw();
 
     draw.background().hsl(0.0, 0.0, 0.0125);
