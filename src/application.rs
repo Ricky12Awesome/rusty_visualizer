@@ -69,33 +69,23 @@ pub trait Application: ApplicationDelegate {
       Event::WindowEvent { id: _, simple: None, .. } => {}
       Event::WindowEvent { id: _id, simple: Some(event), .. } => {
         state.on_window_event(app, event.clone());
-        if let Some(delegate) = delegate {
-          delegate.on_window_event(app, event);
-        }
+        delegate.map(|it| it.on_window_event(app, event));
       }
       Event::DeviceEvent(_, event) => {
         state.on_device_event(app, event.clone());
-        if let Some(delegate) = delegate {
-          delegate.on_device_event(app, event);
-        }
+        delegate.map(|it| it.on_device_event(app, event));
       }
       Event::Update(update) => {
         state.on_update(app, update.clone());
-        if let Some(delegate) = delegate {
-          delegate.on_update(app, update);
-        }
+        delegate.map(|it| it.on_update(app, update));
       }
       Event::Suspended => {
         state.on_suspend(app);
-        if let Some(delegate) = delegate {
-          delegate.on_suspend(app);
-        }
+        delegate.map(|it| it.on_suspend(app));
       }
       Event::Resumed => {
         state.on_resumed(app);
-        if let Some(delegate) = delegate {
-          delegate.on_resumed(app);
-        }
+        delegate.map(|it| it.on_resumed(app));
       }
     }
   }

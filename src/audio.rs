@@ -1,5 +1,5 @@
 use std::ops::Deref;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 use cpal::{Device, Host, InputCallbackInfo, Stream};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -45,6 +45,7 @@ impl AudioMode {
   }
 }
 
+#[derive(Clone)]
 pub struct AudioData {
   pub data: Vec<f32>,
   pub sum: f32,
@@ -112,16 +113,16 @@ impl Default for AudioData {
 unsafe impl Send for Audio {}
 
 pub struct Audio {
-  pub host: Host,
-  pub mode: Arc<Mutex<AudioMode>>,
-  pub stream: Option<Stream>,
-  pub receiver: Option<Arc<Mutex<AudioData>>>,
+  host: Host,
+  mode: Arc<RwLock<AudioMode>>,
+  stream: Option<Stream>,
+  receiver: Option<Arc<RwLock<AudioData>>>,
 }
 
-impl Audio {
-  pub fn from(settings: Settings) -> Audio {
+impl From<Settings> for Audio {
+  fn from(settings: Settings) -> Self {
     let host = cpal::default_host();
-    let mode = Arc::new(Mutex::new(settings.mode));
+    let mode = Arc::new(RwLock::new(settings.mode));
 
     let mut audio = Audio {
       host,
@@ -165,8 +166,26 @@ impl AudioDevice for Device {
 }
 
 impl Audio {
+  pub fn is_mode_fft(&self) -> bool {
+    if let AudioMode::FFT(_) = self.get_mode() {
+      true
+    } else {
+      false
+    }
+  }
+
+  pub fn get_stream(&self) -> &Option<Stream> {
+    &self.stream
+  }
+
+  pub fn get_data(&self) -> Option<AudioData> {
+    self.receiver.as_ref().map(|it| AudioData::clone(&*it.read().unwrap()))
+  }
+
+  pub fn get_mode(&self) -> AudioMode { *self.mode.read().unwrap() }
+
   pub fn change_mode(&mut self, new_mode: AudioMode) {
-    *self.mode.lock().unwrap() = new_mode;
+    *self.mode.write().unwrap() = new_mode;
   }
 
   pub fn change_device<D: AudioDevice>(&mut self, new_device: D) {
@@ -179,14 +198,14 @@ impl Audio {
           }
           Some(device) => {
             let config = device.default_output_config().unwrap();
-            let sender = Arc::new(Mutex::new(AudioData::default()));
+            let sender = Arc::new(RwLock::new(AudioData::default()));
             let receiver = sender.clone();
-            let mode = (&self).mode.clone();
+            let mode = self.mode.clone();
 
             let stream = device.build_input_stream(
               &config.config(),
               move |data: &[f32], _: &InputCallbackInfo| {
-                *sender.lock().unwrap() = AudioData::new(data, *mode.lock().unwrap());
+                *sender.write().unwrap() = AudioData::new(data, *mode.read().unwrap());
               },
               move |err| { println!("{:?}", err) },
             ).unwrap();

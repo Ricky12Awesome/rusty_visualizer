@@ -25,6 +25,8 @@ struct State {
   saturation: f32,
   lightness: f32,
   hue_speed: f32,
+  fft_mode: usize,
+  audio_mode_index: usize,
   gap: f32,
 }
 
@@ -35,6 +37,7 @@ widget_ids! {
     lightness,
     hue_speed,
     select_audio_mode,
+    fft_mode,
   }
 }
 
@@ -83,7 +86,7 @@ impl ApplicationDelegate for State {
       self.lightness = value
     }
 
-    if let Some(index) = widget::DropDownList::new(&AudioMode::all_named(), None)
+    if let Some(index) = widget::DropDownList::new(&AudioMode::all_named(), Some(self.audio_mode_index))
       .down(5.0)
       .label("Select Mode")
       .w_h(400.0, 20.0)
@@ -93,12 +96,27 @@ impl ApplicationDelegate for State {
       .border(0.0)
       .set(self.ids.select_audio_mode, ui)
     {
+      self.audio_mode_index = index;
       self.audio.change_mode(AudioMode::ALL[index]);
     }
 
-    if let Some(receiver) = &self.audio.receiver {
-      let audio = receiver.lock().unwrap();
-      let len = audio.data.len();
+    if self.audio.is_mode_fft() {
+      if let Some(index) = widget::DropDownList::new(&["Double Mirrored", "Mirrored", "Half"], Some(self.fft_mode - 1))
+        .down(5.0)
+        .label("FFT Mode")
+        .w_h(400.0, 20.0)
+        .label_font_size(15)
+        .rgb(0.3, 0.3, 0.3)
+        .label_rgb(1.0, 1.0, 1.0)
+        .border(0.0)
+        .set(self.ids.fft_mode, ui)
+      {
+        self.fft_mode = index + 1;
+      }
+    }
+
+    if let Some(audio) = &self.audio.get_data() {
+      let len = if self.audio.is_mode_fft() { audio.data.len() / self.fft_mode } else { audio.data.len() };
       let offset_width = -(self.size.x / 2f32);
       let gap = self.size.x / len as f32;
 
@@ -132,7 +150,9 @@ impl ApplicationDelegate for State {
 
     draw.background().hsl(0.0, 0.0, 0.0125);
 
-    draw.polyline().weight(2.0).points_colored(self.points.clone()).finish();
+    draw.polyline()
+      .weight(2.0)
+      .points_colored(self.points.clone()).finish();
 
     for (Point2 { x, y }, color) in self.points.clone() {
       draw.rect()
@@ -154,7 +174,7 @@ impl Application for State {
     let mut ui = app.new_ui().build().unwrap();
     let ids = Ids::new(ui.widget_id_generator());
 
-    audio.change_mode(AudioMode::FFT(FFTSize::FFT512));
+    audio.change_mode(AudioMode::Wave);
 
     State {
       audio,
@@ -166,6 +186,8 @@ impl Application for State {
       saturation: 1.0,
       lightness: 0.5,
       hue_speed: 0.05,
+      fft_mode: 1,
+      audio_mode_index: 0,
       gap: 1.0,
     }
   }
