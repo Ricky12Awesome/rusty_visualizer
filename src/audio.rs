@@ -1,5 +1,5 @@
 use std::ops::Deref;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use cpal::{Device, Host, InputCallbackInfo, Stream};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -178,8 +178,8 @@ impl Audio {
     &self.stream
   }
 
-  pub fn get_data(&self) -> Option<AudioData> {
-    self.receiver.as_ref().map(|it| AudioData::clone(&*it.read().unwrap()))
+  pub fn get_data(&self) -> Option<RwLockReadGuard<AudioData>> {
+    Some(self.receiver.as_ref()?.read().ok()?)
   }
 
   pub fn get_mode(&self) -> AudioMode { *self.mode.read().unwrap() }
