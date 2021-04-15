@@ -1,0 +1,11 @@
+[package]
+name = "rusty_visualizer_raylib"
+version = "0.1.0"
+authors = ["Ricky12Awesome <rickygraveen@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rusty_visualizer_core = { path = "../rusty_visualizer_core" }
+raylib = "3.5.0"
