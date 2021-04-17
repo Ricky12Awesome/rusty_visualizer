@@ -113,7 +113,7 @@ impl Default for AudioData {
 unsafe impl Send for Audio {}
 
 pub struct Audio {
-  host: Host,
+  pub host: Host,
   mode: Arc<RwLock<AudioMode>>,
   stream: Option<Stream>,
   receiver: Option<Arc<RwLock<AudioData>>>,
@@ -179,7 +179,7 @@ impl Audio {
   }
 
   pub fn get_data(&self) -> Option<RwLockReadGuard<AudioData>> {
-    Some(self.receiver.as_ref()?.read().ok()?)
+    self.receiver.as_ref()?.read().ok()
   }
 
   pub fn get_mode(&self) -> AudioMode { *self.mode.read().unwrap() }
