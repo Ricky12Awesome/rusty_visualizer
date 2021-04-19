@@ -35,13 +35,13 @@ impl AudioMode {
 
   pub fn all_named() -> Vec<String> {
     Self::ALL.iter()
-      .map(|it| {
-        match it {
-          AudioMode::Wave => format!("Wave"),
-          AudioMode::FFT(size) => format!("FFT {}", *size as usize),
-        }
-      })
-      .collect()
+        .map(|it| {
+          match it {
+            AudioMode::Wave => format!("Wave"),
+            AudioMode::FFT(size) => format!("FFT {}", *size as usize),
+          }
+        })
+        .collect()
   }
 }
 
@@ -63,11 +63,11 @@ impl AudioData {
 
     let data = match mode {
       AudioMode::Wave => {
-        Vec::from(data)
-          .iter()
-          .map(|it| *it)
-          .map(process)
-          .collect()
+        data
+            .iter()
+            .map(|it| *it)
+            .map(process)
+            .collect()
       }
       AudioMode::FFT(size) => {
         let size_v = size as usize;
@@ -81,10 +81,10 @@ impl AudioData {
         process_fft(&mut buffer, &size, FFTMode::Backward);
 
         buffer.iter()
-          .map(|it| (it.re * it.re + it.im * it.im).sqrt().sqrt() / 10f32)
-          .take(size_v)
-          .map(process)
-          .collect()
+            .map(|it| (it.re * it.re + it.im * it.im).sqrt().sqrt() / 10f32)
+            .take(size_v)
+            .map(process)
+            .collect()
       }
     };
 
@@ -113,10 +113,11 @@ impl Default for AudioData {
 unsafe impl Send for Audio {}
 
 pub struct Audio {
-  pub host: Host,
+  host: Host,
   mode: Arc<RwLock<AudioMode>>,
   stream: Option<Stream>,
   receiver: Option<Arc<RwLock<AudioData>>>,
+  auto_play: bool,
 }
 
 impl From<Settings> for Audio {
@@ -129,6 +130,7 @@ impl From<Settings> for Audio {
       mode,
       stream: None,
       receiver: None,
+      auto_play: settings.auto_play,
     };
 
     audio.change_device(settings.device);
@@ -147,7 +149,7 @@ impl AudioDevice for &str {
       "loopback" => host.default_output_device(),
       "default" => host.default_input_device(),
       _ => host.devices().unwrap()
-        .find(|it| it.name().unwrap_or(String::from("")) == self)
+          .find(|it| it.name().unwrap_or(String::from("")) == self)
     }
   }
 }
@@ -161,28 +163,26 @@ impl AudioDevice for String {
 
 impl AudioDevice for Device {
   fn get_device(self, _host: &Host) -> Option<Device> {
-    return Some(self);
+    Some(self)
   }
 }
 
 impl Audio {
   pub fn is_mode_fft(&self) -> bool {
-    if let AudioMode::FFT(_) = self.get_mode() {
-      true
-    } else {
-      false
-    }
+    if let AudioMode::FFT(_) = self.mode() { true } else { false }
   }
 
-  pub fn get_stream(&self) -> &Option<Stream> {
-    &self.stream
-  }
+  pub fn host(&self) -> &Host { &self.host }
 
-  pub fn get_data(&self) -> Option<RwLockReadGuard<AudioData>> {
+  pub fn stream(&self) -> &Option<Stream> { &self.stream }
+
+  pub fn data(&self) -> Option<RwLockReadGuard<AudioData>> {
     self.receiver.as_ref()?.read().ok()
   }
 
-  pub fn get_mode(&self) -> AudioMode { *self.mode.read().unwrap() }
+  pub fn mode(&self) -> AudioMode {
+    *self.mode.read().unwrap()
+  }
 
   pub fn change_mode(&mut self, new_mode: AudioMode) {
     *self.mode.write().unwrap() = new_mode;
@@ -210,7 +210,9 @@ impl Audio {
               move |err| { println!("{:?}", err) },
             ).unwrap();
 
-            stream.play().unwrap();
+            if self.auto_play {
+              stream.play().unwrap();
+            }
 
             self.stream = Some(stream);
             self.receiver = Some(receiver);

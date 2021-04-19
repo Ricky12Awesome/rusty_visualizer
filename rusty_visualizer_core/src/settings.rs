@@ -11,6 +11,7 @@ use crate::audio::AudioMode;
 pub struct Settings {
   pub device: String,
   pub mode: AudioMode,
+  pub auto_play: bool
 }
 
 #[allow(unused_variables, dead_code)]
@@ -19,6 +20,7 @@ impl Settings {
     Settings {
       device: device.into(),
       mode: AudioMode::Wave,
+      auto_play: true
     }
   }
 

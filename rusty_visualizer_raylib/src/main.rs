@@ -17,7 +17,7 @@ fn draw(d: &mut RaylibDrawHandle, audio: &Audio) {
   let h_center = d.get_screen_height() as f32 / 2f32;
   let radius = 400f32;
 
-  if let Some(audio) = audio.get_data() {
+  if let Some(audio) = audio.data() {
     let len = audio.len();
     let lenf32 = len as f32;
     let gap = d.get_screen_width() as f32 / lenf32;
@@ -52,7 +52,6 @@ fn draw(d: &mut RaylibDrawHandle, audio: &Audio) {
 
       let x_inner = w_center + radius * theta.sin();
       let y_inner = h_center - radius * theta.cos();
-
 
       let radius = radius + value;
       let x_outer = w_center + radius * theta.sin();
