@@ -2,11 +2,14 @@
 pub extern crate crossbeam_utils;
 pub extern crate num_complex;
 pub extern crate num_traits;
-pub extern crate serde;
-pub extern crate serde_json;
+
+// Issues when using macros from these
+// pub extern crate serde;
+// pub extern crate serde_json;
 
 pub mod iterator;
 pub mod settings;
 pub mod audio;
+pub mod util;
 pub mod fft;
 

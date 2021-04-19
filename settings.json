@@ -1,6 +1,14 @@
 {
-  "device": "loopback",
-  "mode": {
-    "FFT": "FFT2048"
+  "device": "Loopback",
+  "mode": "Wave",
+  "auto_play": true,
+  "options": {
+    "raylib": {
+      "msaa": true,
+      "resizeable": false,
+      "transparent": false,
+      "undecorated": false,
+      "start_fullscreen": false
+    }
   }
 }

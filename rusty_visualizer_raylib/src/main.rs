@@ -1,16 +1,15 @@
+#[macro_use]
+extern crate rusty_visualizer_core;
+
 use std::f64::consts::TAU;
 
 use raylib::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use rusty_visualizer_core::audio::{Audio, AudioMode};
-use rusty_visualizer_core::fft::FFTSize;
 use rusty_visualizer_core::iterator::StepByFloat;
 use rusty_visualizer_core::settings::Settings;
-
-#[allow(unused_macros)]
-macro_rules! cstr {
-    ($($arg:tt)*) => {std::ffi::CStr::from_bytes_with_nul(format!("{}\0", format!($($arg)*)).as_bytes()).ok()};
-}
+use rusty_visualizer_core::util::AnyErrorResult;
 
 fn draw(d: &mut RaylibDrawHandle, audio: &Audio) {
   let w_center = d.get_screen_width() as f32 / 2f32;
@@ -69,22 +68,57 @@ fn draw(d: &mut RaylibDrawHandle, audio: &Audio) {
   }
 }
 
-fn main() {
+trait ApplyOptions {
+  fn apply(&mut self, options: &Options) -> &mut Self;
+}
+
+impl ApplyOptions for RaylibBuilder {
+  fn apply(&mut self, options: &Options) -> &mut Self {
+    if options.raylib.msaa { self.msaa_4x(); }
+    if options.raylib.undecorated { self.undecorated(); }
+    if options.raylib.transparent { self.transparent(); }
+    if options.raylib.resizeable { self.resizable(); }
+    if options.raylib.start_fullscreen { self.fullscreen(); }
+    self
+  }
+}
+
+#[derive(Default, Copy, Clone, Serialize, Deserialize)]
+struct RaylibOptions {
+  msaa: bool,
+  resizeable: bool,
+  transparent: bool,
+  undecorated: bool,
+  start_fullscreen: bool,
+}
+
+#[derive(Default, Copy, Clone, Serialize, Deserialize)]
+struct Options {
+  raylib: RaylibOptions
+}
+
+fn main() -> AnyErrorResult<()> {
+  let settings = Settings::<Options>::load_default()?;
+
+  settings.save_default()?;
+
   let (mut rl, thread) = raylib::init()
       .size(1920, 1080)
       .title("Rusty Visualizer")
-      .msaa_4x()
-      .resizable()
+      .apply(&settings.options.unwrap_or_default())
       .build();
 
-  let mut audio = Audio::from(Settings::load_default());
+  let mut audio = Audio::from(&settings);
 
   audio.change_mode(AudioMode::Wave);
 
   while !rl.window_should_close() {
     let mut d = rl.begin_drawing(&thread);
-    d.clear_background(Color::new(32, 32, 32, 32));
+    d.clear_background(Color::new(32, 32, 32, 255));
+    // d.clear_background(Color::new(0, 0, 0, 0));
 
     draw(&mut d, &audio);
   }
+
+  Ok(())
 }

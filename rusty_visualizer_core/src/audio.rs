@@ -1,7 +1,7 @@
 use std::ops::Deref;
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
-use cpal::{Device, Host, InputCallbackInfo, Stream};
+use cpal::{Device, Host, InputCallbackInfo, Stream, SupportedStreamConfig};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use num_complex::Complex32;
 use num_traits::Zero;
@@ -9,7 +9,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::fft::{FFTMode, FFTSize, process_fft};
-use crate::settings::Settings;
+use crate::settings::AudioSettings;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub enum AudioMode {
@@ -99,9 +99,7 @@ impl AudioData {
 impl Deref for AudioData {
   type Target = Vec<f32>;
 
-  fn deref(&self) -> &Self::Target {
-    &self.data
-  }
+  fn deref(&self) -> &Self::Target { &self.data }
 }
 
 impl Default for AudioData {
@@ -120,34 +118,57 @@ pub struct Audio {
   auto_play: bool,
 }
 
-impl From<Settings> for Audio {
-  fn from(settings: Settings) -> Self {
+impl<S: AudioSettings> From<&S> for Audio {
+  fn from(settings: &S) -> Self {
     let host = cpal::default_host();
-    let mode = Arc::new(RwLock::new(settings.mode));
+    let mode = Arc::new(RwLock::new(*settings.mode()));
 
     let mut audio = Audio {
       host,
       mode,
       stream: None,
       receiver: None,
-      auto_play: settings.auto_play,
+      auto_play: settings.auto_play(),
     };
 
-    audio.change_device(settings.device);
+    audio.change_device(settings.device().clone());
 
     return audio;
   }
 }
 
-pub trait AudioDevice: Send {
+#[derive(Clone, Serialize, Deserialize)]
+pub enum AudioDevice<D: NamedAudioDevice> {
+  Default,
+  Loopback,
+  Input(D),
+  Output(D),
+}
+
+pub trait NamedAudioDevice: Send {
   fn get_device(self, host: &Host) -> Option<Device>;
 }
 
-impl AudioDevice for &str {
+impl<D: NamedAudioDevice> AudioDevice<D> {
+  fn get_device(self, host: &Host) -> Option<(SupportedStreamConfig, Device)> {
+    match self {
+      AudioDevice::Default => "default".get_device(host)
+          .map(|it| (it.default_input_config().unwrap(), it)),
+      AudioDevice::Loopback => "loopback".get_device(host)
+          .map(|it| (it.default_output_config().unwrap(), it)),
+      AudioDevice::Input(device) => device.get_device(host)
+          .map(|it| (it.default_input_config().unwrap(), it)),
+      AudioDevice::Output(device) => device.get_device(host)
+          .map(|it| (it.default_output_config().unwrap(), it)),
+    }
+  }
+}
+
+impl NamedAudioDevice for &str {
   fn get_device(self, host: &Host) -> Option<Device> {
     match self {
-      "loopback" => host.default_output_device(),
       "default" => host.default_input_device(),
+      "loopback" => host.default_output_device(),
       _ => host.devices().unwrap()
           .find(|it| it.name().unwrap_or(String::from("")) == self)
     }
@@ -155,13 +176,13 @@ impl AudioDevice for &str {
 }
 
 
-impl AudioDevice for String {
+impl NamedAudioDevice for String {
   fn get_device(self, host: &Host) -> Option<Device> {
-    AudioDevice::get_device(self.as_ref(), host)
+    NamedAudioDevice::get_device(self.as_ref(), host)
   }
 }
 
-impl AudioDevice for Device {
+impl NamedAudioDevice for Device {
   fn get_device(self, _host: &Host) -> Option<Device> {
     Some(self)
   }
@@ -188,7 +209,7 @@ impl Audio {
     *self.mode.write().unwrap() = new_mode;
   }
 
-  pub fn change_device<D: AudioDevice>(&mut self, new_device: D) {
+  pub fn change_device<D: NamedAudioDevice>(&mut self, new_device: AudioDevice<D>) {
     crossbeam_utils::thread::scope(|s| {
       s.spawn(|_| {
         match new_device.get_device(&self.host) {
@@ -196,8 +217,7 @@ impl Audio {
             self.stream = None;
             self.receiver = None;
           }
-          Some(device) => {
-            let config = device.default_output_config().unwrap();
+          Some((config, device)) => {
             let sender = Arc::new(RwLock::new(AudioData::default()));
             let receiver = sender.clone();
             let mode = self.mode.clone();
