@@ -7,9 +7,8 @@ pub extern crate num_traits;
 // pub extern crate serde;
 // pub extern crate serde_json;
 
+pub mod audio;
+pub mod fft;
 pub mod iterator;
 pub mod settings;
-pub mod audio;
 pub mod util;
-pub mod fft;
-

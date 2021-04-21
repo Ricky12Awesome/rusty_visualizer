@@ -14,7 +14,7 @@ pub trait AudioSettings {
   fn auto_play(&self) -> bool;
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Settings<O> {
   pub device: AudioDevice<String>,
   pub mode: AudioMode,
@@ -23,12 +23,20 @@ pub struct Settings<O> {
 }
 
 impl<O> AudioSettings for Settings<O> {
-  fn device(&self) -> &AudioDevice<String> { &self.device }
-  fn mode(&self) -> &AudioMode { &self.mode }
-  fn auto_play(&self) -> bool { self.auto_play }
+  fn device(&self) -> &AudioDevice<String> {
+    &self.device
+  }
+
+  fn mode(&self) -> &AudioMode {
+    &self.mode
+  }
+
+  fn auto_play(&self) -> bool {
+    self.auto_play
+  }
 }
 
-impl<O: Serialize + DeserializeOwned + Default> Settings<O> {
+impl<O: Clone + Serialize + DeserializeOwned + Default> Settings<O> {
   pub fn change_options<F: Fn(&mut O)>(&mut self, change: F) {
     match &mut self.options {
       Some(options) => change(options),
@@ -43,7 +51,7 @@ impl<O: Serialize + DeserializeOwned + Default> Settings<O> {
   }
 }
 
-impl<O: Serialize + DeserializeOwned> Settings<O> {
+impl<O: Clone + Serialize + DeserializeOwned> Settings<O> {
   pub fn new(device: AudioDevice<String>, options: Option<O>) -> Self {
     Settings {
       device,
@@ -65,17 +73,20 @@ impl<O: Serialize + DeserializeOwned> Settings<O> {
     Ok(serde_json::to_writer_pretty(&mut file, self)?)
   }
 
-  pub fn load_default() -> AnyErrorResult<Self> {
+  pub fn load_from_default_path() -> AnyErrorResult<Self> {
     Settings::load("./settings.json")
   }
 
-  pub fn save_default(&self) -> AnyErrorResult<()> {
+  pub fn save_to_default_path(&self) -> AnyErrorResult<()> {
     self.save("./settings.json")
   }
 }
 
-impl<O: Serialize + DeserializeOwned + Default> Default for Settings<O> {
+impl<O: Clone + Serialize + DeserializeOwned + Default> Default for Settings<O> {
   fn default() -> Self {
-    Settings::new(AudioDevice::Default, Some(O::default()))
+    match Self::load_from_default_path() {
+      Ok(settings) => settings,
+      Err(_) => Settings::new(AudioDevice::Default, Some(O::default())),
+    }
   }
 }

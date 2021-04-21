@@ -4,8 +4,11 @@
   "auto_play": true,
   "options": {
     "raylib": {
+      "title": "Rusty Visualizer",
+      "width": 1920,
+      "height": 1080,
       "msaa": true,
-      "resizeable": false,
+      "resizeable": true,
       "transparent": false,
       "undecorated": false,
       "start_fullscreen": false

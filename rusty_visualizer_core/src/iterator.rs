@@ -26,7 +26,13 @@ impl<N: AsPrimitive<f64>> StepByFloat for Range<N> {
 
 impl<Out> FloatStepIterator<Out> {
   pub fn new(start: f64, end: f64, step: f64) -> Self {
-    FloatStepIterator { start, end, step, counter: start, _out: PhantomData::default() }
+    FloatStepIterator {
+      start,
+      end,
+      step,
+      counter: start,
+      _out: PhantomData::default(),
+    }
   }
 
   pub fn from<N: AsPrimitive<f64>>(range: Range<N>, step: f64) -> Self {
