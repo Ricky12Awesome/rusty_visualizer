@@ -6,7 +6,6 @@ An audio visualizer made in rust!
 
 Build
 -----
+You would need [cmake](https://cmake.org/download/) installed and must be in `PATH`
 
-Make sure you have `clang` and `cmake` installed, and make sure they're in your `PATH`
-
-also, you might need [Cross](https://github.com/rust-embedded/cross)
+follow the same steps to get [raylib](https://github.com/deltaphc/raylib-rs) working

@@ -52,23 +52,30 @@ impl ApplyOptions<RaylibOptions> for RaylibBuilder {
 #[allow(unused_variables)]
 pub trait Application {
   fn init() -> Self;
-  fn setup(handle: &mut RaylibHandle, thread: &RaylibThread) {}
+  fn setup(&mut self, rl: &mut RaylibHandle, thread: &RaylibThread) {}
+
   fn draw(&self, d: &mut RaylibDrawHandle);
+
+  fn gui<G: RaylibDrawGui>(&mut self, d: &mut G) {
+
+  }
+
   fn raylib_options(&self) -> RaylibOptions;
 }
 
 pub fn run_application<A: Application>() -> AnyErrorResult<()> {
-  let app = A::init();
+  let mut app = A::init();
   let options = app.raylib_options();
 
   let (mut rl, thread) = raylib::init().apply(&options).build();
 
-  A::setup(&mut rl, &thread);
+  app.setup(&mut rl, &thread);
 
   while !rl.window_should_close() {
     let mut d = rl.begin_drawing(&thread);
 
     app.draw(&mut d);
+    app.gui(&mut d);
   }
 
   Ok(())

@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate rusty_visualizer_core;
 
 use std::f64::consts::TAU;
@@ -12,7 +11,10 @@ use rusty_visualizer_core::fft::FFTSize;
 use rusty_visualizer_core::settings::Settings;
 use rusty_visualizer_core::util::AnyErrorResult;
 
-use crate::application::{Application, run_application};
+use rayui::rayui_str;
+
+use crate::application::{run_application, Application};
+use rayui::theme::{Theme, RaylibHandleApplyTheme};
 
 mod application;
 
@@ -24,16 +26,21 @@ struct Options {
 struct State {
   settings: Settings<Options>,
   audio: Audio,
+  theme: Theme,
 }
 
 impl Application for State {
   fn init() -> Self {
     let settings = Settings::default();
-    let mut audio = Audio::from(&settings);
+    let audio = Audio::from(&settings);
+    let theme = Theme::default();
 
-    audio.change_mode(AudioMode::FFT(FFTSize::FFT16384));
+    Self { settings, audio, theme }
+  }
 
-    Self { settings, audio }
+  fn setup(&mut self, _rl: &mut RaylibHandle, _thread: &RaylibThread) {
+    self.audio.change_mode(AudioMode::FFT(FFTSize::FFT16384));
+    _rl.apply(&self.theme);
   }
 
   fn draw(&self, d: &mut RaylibDrawHandle) {
@@ -82,13 +89,14 @@ impl Application for State {
         let x_outer = w_center + radius * x;
         let y_outer = h_center - radius * y;
 
-        d.draw_line_ex(
-          Vector2::new(x_inner, y_inner),
-          Vector2::new(x_outer, y_outer),
-          1.0,
-          color,
-        );
+        d.draw_line_ex(Vector2::new(x_inner, y_inner), Vector2::new(x_outer, y_outer), 1.0, color);
       }
+    }
+  }
+
+  fn gui<G: RaylibDrawGui>(&mut self, d: &mut G) {
+    if d.gui_button(Rectangle::new(5.0, 500.0, 400.0, 40.0), rayui_str!("Click me")) {
+      println!("Yes");
     }
   }
 
