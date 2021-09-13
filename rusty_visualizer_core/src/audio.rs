@@ -130,33 +130,57 @@ impl<S: AudioSettings> From<&S> for Audio {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub enum AudioDevice<D: NamedAudioDevice> {
+pub enum AudioDevices<D: NamedAudioDevice = ()> {
+  None,
   Default,
   Loopback,
   Input(D),
   Output(D),
 }
 
+impl AudioDevices {
+  pub const NONE: Self = Self::None;
+  pub const DEFAULT: Self = Self::Default;
+  pub const LOOPBACK: Self = Self::Loopback;
+}
+
+impl <D: NamedAudioDevice> Default for AudioDevices<D> {
+  fn default() -> Self {
+    Self::Default
+  }
+}
+
 pub trait NamedAudioDevice: Send {
   fn get_device(self, host: &Host) -> Option<Device>;
 }
 
-impl<D: NamedAudioDevice> AudioDevice<D> {
+pub trait AudioDevice: Send {
+  fn get_device(self, host: &Host) -> Option<(SupportedStreamConfig, Device)>;
+}
+
+impl<D: NamedAudioDevice> AudioDevice for AudioDevices<D> {
   fn get_device(self, host: &Host) -> Option<(SupportedStreamConfig, Device)> {
     match self {
-      AudioDevice::Default => "default"
+      AudioDevices::Default => "default"
         .get_device(host)
         .map(|it| (it.default_input_config().unwrap(), it)),
-      AudioDevice::Loopback => "loopback"
+      AudioDevices::Loopback => "loopback"
         .get_device(host)
         .map(|it| (it.default_output_config().unwrap(), it)),
-      AudioDevice::Input(device) => device
+      AudioDevices::Input(device) => device
         .get_device(host)
         .map(|it| (it.default_input_config().unwrap(), it)),
-      AudioDevice::Output(device) => device
+      AudioDevices::Output(device) => device
         .get_device(host)
         .map(|it| (it.default_output_config().unwrap(), it)),
+      _ => None
     }
+  }
+}
+
+impl NamedAudioDevice for () {
+  fn get_device(self, _host: &Host) -> Option<Device> {
+    None
   }
 }
 
@@ -165,6 +189,7 @@ impl NamedAudioDevice for &str {
     match self {
       "default" => host.default_input_device(),
       "loopback" => host.default_output_device(),
+      "none" | "" => None,
       _ => host
         .devices()
         .unwrap()
@@ -214,7 +239,7 @@ impl Audio {
     *self.mode.write().unwrap() = new_mode;
   }
 
-  pub fn change_device<D: NamedAudioDevice>(&mut self, new_device: AudioDevice<D>) {
+  pub fn change_device(&mut self, new_device: impl AudioDevice) {
     crossbeam_utils::thread::scope(|s| {
       s.spawn(|_| match new_device.get_device(&self.host) {
         None => {

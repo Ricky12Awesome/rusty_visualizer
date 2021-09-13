@@ -56,9 +56,7 @@ pub trait Application {
 
   fn draw(&self, d: &mut RaylibDrawHandle);
 
-  fn gui<G: RaylibDrawGui>(&mut self, d: &mut G) {
-
-  }
+  fn gui<G: RaylibDrawGui>(&mut self, d: &mut G) {}
 
   fn raylib_options(&self) -> RaylibOptions;
 }

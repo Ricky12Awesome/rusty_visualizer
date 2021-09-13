@@ -5,25 +5,25 @@ use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::audio::{AudioDevice, AudioMode};
+use crate::audio::{AudioDevices, AudioMode};
 use crate::util::AnyErrorResult;
 
 pub trait AudioSettings {
-  fn device(&self) -> &AudioDevice<String>;
+  fn device(&self) -> &AudioDevices<String>;
   fn mode(&self) -> &AudioMode;
   fn auto_play(&self) -> bool;
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Settings<O> {
-  pub device: AudioDevice<String>,
+  pub device: AudioDevices<String>,
   pub mode: AudioMode,
   pub auto_play: bool,
   pub options: Option<O>,
 }
 
 impl<O> AudioSettings for Settings<O> {
-  fn device(&self) -> &AudioDevice<String> {
+  fn device(&self) -> &AudioDevices<String> {
     &self.device
   }
 
@@ -52,7 +52,7 @@ impl<O: Clone + Serialize + DeserializeOwned + Default> Settings<O> {
 }
 
 impl<O: Clone + Serialize + DeserializeOwned> Settings<O> {
-  pub fn new(device: AudioDevice<String>, options: Option<O>) -> Self {
+  pub fn new(device: AudioDevices<String>, options: Option<O>) -> Self {
     Settings {
       device,
       mode: AudioMode::Wave,
@@ -82,11 +82,25 @@ impl<O: Clone + Serialize + DeserializeOwned> Settings<O> {
   }
 }
 
+
+impl<O: Clone + Serialize + DeserializeOwned + Default> Settings<O> {
+  fn default() -> Self {
+    Settings::new(AudioDevices::Default, Some(O::default()))
+  }
+
+  pub fn load_default<P: AsRef<Path>>(path: P) -> Self {
+    match Self::load(path) {
+      Ok(settings) => settings,
+      Err(_) => Self::default(),
+    }
+  }
+}
+
 impl<O: Clone + Serialize + DeserializeOwned + Default> Default for Settings<O> {
   fn default() -> Self {
     match Self::load_from_default_path() {
       Ok(settings) => settings,
-      Err(_) => Settings::new(AudioDevice::Default, Some(O::default())),
+      Err(_) => Settings::default()
     }
   }
 }

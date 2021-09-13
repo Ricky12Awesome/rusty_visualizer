@@ -11,10 +11,9 @@ use rusty_visualizer_core::fft::FFTSize;
 use rusty_visualizer_core::settings::Settings;
 use rusty_visualizer_core::util::AnyErrorResult;
 
-use rayui::rayui_str;
-
 use crate::application::{run_application, Application};
-use rayui::theme::{Theme, RaylibHandleApplyTheme};
+use rayui::theme::{RaylibHandleApplyTheme, Theme};
+use std::ffi::CString;
 
 mod application;
 
@@ -27,6 +26,7 @@ struct State {
   settings: Settings<Options>,
   audio: Audio,
   theme: Theme,
+  scale: f32,
 }
 
 impl Application for State {
@@ -34,13 +34,27 @@ impl Application for State {
     let settings = Settings::default();
     let audio = Audio::from(&settings);
     let theme = Theme::default();
+    let scale = 1.0f32;
 
-    Self { settings, audio, theme }
+    Self {
+      settings,
+      audio,
+      theme,
+      scale,
+    }
   }
 
   fn setup(&mut self, _rl: &mut RaylibHandle, _thread: &RaylibThread) {
     self.audio.change_mode(AudioMode::FFT(FFTSize::FFT16384));
     _rl.apply(&self.theme);
+  }
+
+  fn gui<G: RaylibDrawGui>(&mut self, d: &mut G) {
+    self.scale = d.gui_slider(
+      rrect(5, 5, 200, 30),
+      None, rayui::rayui_str!("Scale"), self.scale,
+      0.01, 2.0
+    );
   }
 
   fn draw(&self, d: &mut RaylibDrawHandle) {
@@ -59,7 +73,7 @@ impl Application for State {
       let mut last = Vector2::new(0f32, h_center);
 
       for i in 0..len {
-        let value = audio[i] * 500f32 * 2f32;
+        let value = audio[i] * 500f32 * self.scale;
         let if32 = i as f32;
         let color = Color::color_from_hsv((360f32 / lenf32) * if32, 1.0, 1.0);
 
@@ -91,12 +105,6 @@ impl Application for State {
 
         d.draw_line_ex(Vector2::new(x_inner, y_inner), Vector2::new(x_outer, y_outer), 1.0, color);
       }
-    }
-  }
-
-  fn gui<G: RaylibDrawGui>(&mut self, d: &mut G) {
-    if d.gui_button(Rectangle::new(5.0, 500.0, 400.0, 40.0), rayui_str!("Click me")) {
-      println!("Yes");
     }
   }
 
