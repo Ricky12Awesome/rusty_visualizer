@@ -45,6 +45,7 @@
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/winapi-3edf200a47244255/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/rusty_visualizer_nannou/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/rusty_visualizer_egui/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/rusty_visualizer_macroquad/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/rusty_visualizer_piston/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/ahash-82195cd4abf1017c/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/anyhow-89674427647a555b/out" isTestSource="false" />
@@ -55,15 +56,22 @@
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/crossbeam-epoch-afa6c04c88df2690/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/crossbeam-utils-49293f19d71a6f8b/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/gfx_gl-61ae05db5ac05737/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/gfx_gl-833d31cc0404b748/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/gl-42bc011f553db967/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/gl-8784e9791b40cad8/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/gl-937c5ee6f70795ef/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/glfw-sys-ecd90c4c0d01d1c1/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/glium-6bf3a02498f6807b/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/glium-e8cb3ac07a61e46d/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/glutin_egl_sys-80b04e4a488960e0/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/glutin_egl_sys-97b4309165f5ce23/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/glutin_wgl_sys-8d13c4426f0f666c/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/glutin_wgl_sys-f9f3ddb236eb3a88/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/khronos_api-5034b49ad3244ec1/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/libc-0fadeee7ae1d6bab/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/libc-d3301f7cafca6a53/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/log-1aba3305d6643dcf/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/log-7991da8fd51db33d/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/memoffset-320a7b34d5f0b873/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/miniz_oxide-601308ad115a1b4c/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/num-integer-a870c1f8fdf52157/out" isTestSource="false" />
@@ -80,8 +88,11 @@
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/serde_json-2ab5dfb75c9fcdfa/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/syn-02bdd1c6f1236611/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/winapi-1ab324eb9b6bbc6f/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/winapi-60c9296228b1190a/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/winapi-70f57ce9d3af0cef/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/winapi-843fff5dd05b9be4/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/winapi-9332b86fd949fdb3/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/winapi-d946a9a766e0d914/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/winit-18c0ecff3c1714df/out" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>

@@ -3,4 +3,5 @@ members = [
     "rusty_visualizer_raylib",
     "rusty_visualizer_piston",
     "rusty_visualizer_egui",
+    "rusty_visualizer_macroquad",
 ]
