@@ -17,8 +17,23 @@ pub enum AudioMode {
   Wave,
 }
 
+
+// Doesn't work for enums
+// macro_rules! enum_name_const {
+//   ($(($n:literal, $v:path)),* $(,)?) => {
+//     pub const ALL_2: &'static [Self] = &[$($v),*];
+//     pub const ALL_NAMED_2: &'static [(&'static str, Self)] = &[$(($n, $v)),*];
+//
+//     pub const fn name_2(&self) -> &'static str {
+//       match self {
+//         $($v => $n),*
+//       }
+//     }
+//   };
+// }
+
 impl AudioMode {
-  pub const ALL: &'static [AudioMode] = &[
+  pub const ALL: &'static [Self] = &[
     AudioMode::Wave,
     AudioMode::FFT(FFTSize::FFT16),
     AudioMode::FFT(FFTSize::FFT32),
@@ -33,14 +48,21 @@ impl AudioMode {
     AudioMode::FFT(FFTSize::FFT16384),
   ];
 
-  pub fn all_named() -> Vec<String> {
-    Self::ALL
-      .iter()
-      .map(|it| match it {
-        AudioMode::Wave => format!("Wave"),
-        AudioMode::FFT(size) => format!("FFT {}", *size as usize),
-      })
-      .collect()
+  pub const fn name(&self) -> &'static str {
+    match self {
+      AudioMode::Wave => "Wave",
+      AudioMode::FFT(FFTSize::FFT16) => "FFT 16",
+      AudioMode::FFT(FFTSize::FFT32) => "FFT 32",
+      AudioMode::FFT(FFTSize::FFT64) => "FFT 64",
+      AudioMode::FFT(FFTSize::FFT128) => "FFT 128",
+      AudioMode::FFT(FFTSize::FFT256) => "FFT 256",
+      AudioMode::FFT(FFTSize::FFT512) => "FFT 512",
+      AudioMode::FFT(FFTSize::FFT1024) => "FFT 1024",
+      AudioMode::FFT(FFTSize::FFT2048) => "FFT 2048",
+      AudioMode::FFT(FFTSize::FFT4096) => "FFT 4096",
+      AudioMode::FFT(FFTSize::FFT8192) => "FFT 8192",
+      AudioMode::FFT(FFTSize::FFT16384) => "FFT 16384",
+    }
   }
 }
 
@@ -130,7 +152,7 @@ impl<S: AudioSettings> From<&S> for Audio {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub enum AudioDevices<D: NamedAudioDevice = ()> {
+pub enum AudioDevice<D: NamedAudioDevice = ()> {
   None,
   Default,
   Loopback,
@@ -138,13 +160,13 @@ pub enum AudioDevices<D: NamedAudioDevice = ()> {
   Output(D),
 }
 
-impl AudioDevices {
+impl AudioDevice {
   pub const NONE: Self = Self::None;
   pub const DEFAULT: Self = Self::Default;
   pub const LOOPBACK: Self = Self::Loopback;
 }
 
-impl <D: NamedAudioDevice> Default for AudioDevices<D> {
+impl <D: NamedAudioDevice> Default for AudioDevice<D> {
   fn default() -> Self {
     Self::Default
   }
@@ -154,23 +176,23 @@ pub trait NamedAudioDevice: Send {
   fn get_device(self, host: &Host) -> Option<Device>;
 }
 
-pub trait AudioDevice: Send {
+pub trait NamedAudioDeviceWithConfig: Send {
   fn get_device(self, host: &Host) -> Option<(SupportedStreamConfig, Device)>;
 }
 
-impl<D: NamedAudioDevice> AudioDevice for AudioDevices<D> {
+impl<D: NamedAudioDevice> NamedAudioDeviceWithConfig for AudioDevice<D> {
   fn get_device(self, host: &Host) -> Option<(SupportedStreamConfig, Device)> {
     match self {
-      AudioDevices::Default => "default"
+      AudioDevice::Default => "default"
         .get_device(host)
         .map(|it| (it.default_input_config().unwrap(), it)),
-      AudioDevices::Loopback => "loopback"
+      AudioDevice::Loopback => "loopback"
         .get_device(host)
         .map(|it| (it.default_output_config().unwrap(), it)),
-      AudioDevices::Input(device) => device
+      AudioDevice::Input(device) => device
         .get_device(host)
         .map(|it| (it.default_input_config().unwrap(), it)),
-      AudioDevices::Output(device) => device
+      AudioDevice::Output(device) => device
         .get_device(host)
         .map(|it| (it.default_output_config().unwrap(), it)),
       _ => None
@@ -239,7 +261,7 @@ impl Audio {
     *self.mode.write().unwrap() = new_mode;
   }
 
-  pub fn change_device(&mut self, new_device: impl AudioDevice) {
+  pub fn change_device(&mut self, new_device: impl NamedAudioDeviceWithConfig) {
     crossbeam_utils::thread::scope(|s| {
       s.spawn(|_| match new_device.get_device(&self.host) {
         None => {

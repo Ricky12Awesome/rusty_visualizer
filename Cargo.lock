@@ -802,6 +802,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "egui-macroquad"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b563582c65d32146d825ecdf74d075748be7b146d6464e703334eacdbeaa409d"
+dependencies = [
+ "egui",
+ "egui-miniquad",
+ "macroquad",
+]
+
+[[package]]
+name = "egui-miniquad"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "89daaf9fa175672ec90c7224e98e50b365e2bb28ff75aa70cfdd62ce2c8f7e39"
+dependencies = [
+ "copypasta",
+ "egui",
+ "miniquad",
+ "quad-url",
+]
+
+[[package]]
 name = "egui_glium"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2174,6 +2197,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "658fa1faf7a4cc5f057c9ee5ef560f717ad9d8dc66d975267f709624d6e1ab88"
 
 [[package]]
+name = "quad-url"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e674b7e6218e9d5d01ca431e2088b647cd75cdf483f8201533dcb1fecfa25f03"
+dependencies = [
+ "sapp-jsutils",
+ "webbrowser",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2341,6 +2374,8 @@ dependencies = [
 name = "rusty_visualizer_macroquad"
 version = "0.1.0"
 dependencies = [
+ "egui",
+ "egui-macroquad",
  "macroquad",
  "rusty_visualizer_core",
  "serde",
@@ -2419,6 +2454,12 @@ checksum = "081e6e5261c9ac2e938979b6a854a53b439f065fc3c897205ce7e69d3028b4a9"
 dependencies = [
  "cc",
 ]
+
+[[package]]
+name = "sapp-jsutils"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb8ababa867431fa6c0a178248bfe7e77b5d1de357c9848883ba8e3946bb21d4"
 
 [[package]]
 name = "sapp-linux"

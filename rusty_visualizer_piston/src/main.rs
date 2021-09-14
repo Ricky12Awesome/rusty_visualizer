@@ -1,6 +1,6 @@
 use piston_window::math::Vec2d;
 use piston_window::*;
-use rusty_visualizer_core::audio::{Audio, AudioDevices, AudioMode};
+use rusty_visualizer_core::audio::{Audio, AudioDevice, AudioMode};
 use rusty_visualizer_core::fft::FFTSize::{FFT4096, FFT16384};
 use rusty_visualizer_core::settings::Settings;
 
@@ -13,7 +13,7 @@ fn main() {
   let settings = Settings::<()>::load_default("./settings_piston.json");
   let mut audio = Audio::from(&settings);
 
-  audio.change_device(AudioDevices::<()>::Loopback);
+  audio.change_device(AudioDevice::<()>::Loopback);
   audio.change_mode(AudioMode::FFT(FFT16384));
 
   while let Some(event) = window.next() {

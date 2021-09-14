@@ -1,6 +1,6 @@
 use eframe::egui::{CentralPanel, CtxRef, Painter, Pos2, Rect, Rgba, SidePanel, Slider, Vec2};
 use eframe::epi::{App, Frame};
-use rusty_visualizer_core::audio::{Audio, AudioDevices, AudioMode};
+use rusty_visualizer_core::audio::{Audio, AudioDevice, AudioMode};
 use rusty_visualizer_core::fft::FFTSize;
 use rusty_visualizer_core::settings::Settings;
 
@@ -20,7 +20,7 @@ impl Default for State {
     let mut audio = Audio::from(&settings);
     let value = 1.0f32;
 
-    audio.change_device(AudioDevices::LOOPBACK);
+    audio.change_device(AudioDevice::LOOPBACK);
     audio.change_mode(AudioMode::FFT(FFTSize::FFT16384));
 
     Self { settings, audio, value }
