@@ -94,6 +94,7 @@
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/winapi-9332b86fd949fdb3/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/winapi-d946a9a766e0d914/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/winit-18c0ecff3c1714df/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/winapi-004a7e6e3a511bd7/out" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

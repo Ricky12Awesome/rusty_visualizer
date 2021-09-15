@@ -9,7 +9,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::fft::{FFTMode, FFTSize, process_fft};
-use crate::settings::AudioSettings;
+use crate::settings::AudioSettingsRef;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub enum AudioMode {
@@ -132,7 +132,7 @@ pub struct Audio {
   auto_play: bool,
 }
 
-impl<S: AudioSettings> From<&S> for Audio {
+impl<S: AudioSettingsRef> From<&S> for Audio {
   fn from(settings: &S) -> Self {
     let host = cpal::default_host();
     let mode = Arc::new(RwLock::new(*settings.mode()));

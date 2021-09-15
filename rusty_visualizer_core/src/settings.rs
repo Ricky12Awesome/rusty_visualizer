@@ -6,101 +6,76 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::audio::{AudioDevice, AudioMode};
-use crate::util::AnyErrorResult;
 
-pub trait AudioSettings {
+pub trait AudioSettingsRef {
   fn device(&self) -> &AudioDevice<String>;
   fn mode(&self) -> &AudioMode;
   fn auto_play(&self) -> bool;
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct Settings<O> {
+pub struct AudioSettings {
   pub device: AudioDevice<String>,
   pub mode: AudioMode,
-  pub auto_play: bool,
-  pub options: Option<O>,
+  pub auto_play: bool
 }
 
-impl<O> AudioSettings for Settings<O> {
+impl AudioSettingsRef for AudioSettings {
   fn device(&self) -> &AudioDevice<String> {
     &self.device
   }
-
   fn mode(&self) -> &AudioMode {
     &self.mode
   }
-
   fn auto_play(&self) -> bool {
     self.auto_play
   }
 }
 
-impl<O: Clone + Serialize + DeserializeOwned + Default> Settings<O> {
-  pub fn change_options<F: Fn(&mut O)>(&mut self, change: F) {
-    match &mut self.options {
-      Some(options) => change(options),
-      None => {
-        let mut options = O::default();
-
-        change(&mut options);
-
-        self.options = Some(options);
-      }
+impl AudioSettings {
+  pub fn new(device: AudioDevice<String>) -> Self {
+    AudioSettings {
+      device,
+      mode: AudioMode::Wave,
+      auto_play: true,
     }
   }
 }
 
-impl<O: Clone + Serialize + DeserializeOwned> Settings<O> {
-  pub fn new(device: AudioDevice<String>, options: Option<O>) -> Self {
-    Settings {
-      device,
-      mode: AudioMode::Wave,
-      auto_play: true,
-      options,
-    }
+impl Default for AudioSettings {
+  fn default() -> Self {
+    Self::new(AudioDevice::Default)
   }
+}
 
-  pub fn load<P: AsRef<Path>>(path: P) -> AnyErrorResult<Self> {
+pub trait SettingsManager: Sized + Serialize + DeserializeOwned + Default {
+  const DEFAULT_PATH: &'static str = "./settings.json";
+
+  fn load_from_path<P: AsRef<Path>>(path: P) -> std::io::Result<Self> {
     let file = File::open(path)?;
 
     Ok(serde_json::from_reader(file)?)
   }
 
-  pub fn save<P: AsRef<Path>>(&self, path: P) -> AnyErrorResult<()> {
+  fn save_to_path<P: AsRef<Path>>(&self, path: P) -> std::io::Result<()> {
     let mut file = File::create(path)?;
 
     Ok(serde_json::to_writer_pretty(&mut file, self)?)
   }
 
-  pub fn load_from_default_path() -> AnyErrorResult<Self> {
-    Settings::load("./settings.json")
+  fn load_from_path_or_default<P: AsRef<Path>>(path: P) -> Self {
+    Self::load_from_path(path).unwrap_or_default()
   }
 
-  pub fn save_to_default_path(&self) -> AnyErrorResult<()> {
-    self.save("./settings.json")
-  }
-}
-
-
-impl<O: Clone + Serialize + DeserializeOwned + Default> Settings<O> {
-  fn default() -> Self {
-    Settings::new(AudioDevice::Default, Some(O::default()))
+  fn load() -> Self {
+    Self::load_from_default_path().unwrap_or_default()
   }
 
-  pub fn load_default<P: AsRef<Path>>(path: P) -> Self {
-    match Self::load(path) {
-      Ok(settings) => settings,
-      Err(_) => Self::default(),
-    }
+  fn load_from_default_path() -> std::io::Result<Self> {
+    Self::load_from_path(Self::DEFAULT_PATH)
   }
-}
 
-impl<O: Clone + Serialize + DeserializeOwned + Default> Default for Settings<O> {
-  fn default() -> Self {
-    match Self::load_from_default_path() {
-      Ok(settings) => settings,
-      Err(_) => Settings::default()
-    }
+  fn save_to_default_path(&self) -> std::io::Result<()> {
+    self.save_to_path(Self::DEFAULT_PATH)
   }
 }

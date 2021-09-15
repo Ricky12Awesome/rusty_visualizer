@@ -3,27 +3,31 @@ extern crate rusty_visualizer_core;
 use std::f64::consts::TAU;
 
 use raylib::prelude::*;
+use rayui::theme::{RaylibHandleApplyTheme, Theme};
 use serde::{Deserialize, Serialize};
 
 use application::RaylibOptions;
 use rusty_visualizer_core::audio::{Audio, AudioMode};
 use rusty_visualizer_core::fft::FFTSize;
-use rusty_visualizer_core::settings::Settings;
+use rusty_visualizer_core::settings::{AudioSettings, SettingsManager};
 use rusty_visualizer_core::util::AnyErrorResult;
 
-use crate::application::{run_application, Application};
-use rayui::theme::{RaylibHandleApplyTheme, Theme};
-use std::ffi::CString;
+use crate::application::{Application, run_application};
 
 mod application;
 
 #[derive(Default, Clone, Serialize, Deserialize)]
-struct Options {
-  raylib: RaylibOptions,
+struct Settings {
+  audio: AudioSettings,
+  options: RaylibOptions
+}
+
+impl SettingsManager for Settings {
+  const DEFAULT_PATH: &'static str = "./settings_raylib.json";
 }
 
 struct State {
-  settings: Settings<Options>,
+  settings: Settings,
   audio: Audio,
   theme: Theme,
   scale: f32,
@@ -31,8 +35,8 @@ struct State {
 
 impl Application for State {
   fn init() -> Self {
-    let settings = Settings::default();
-    let audio = Audio::from(&settings);
+    let settings = Settings::load();
+    let audio = Audio::from(&settings.audio);
     let theme = Theme::default();
     let scale = 1.0f32;
 
@@ -47,14 +51,6 @@ impl Application for State {
   fn setup(&mut self, _rl: &mut RaylibHandle, _thread: &RaylibThread) {
     self.audio.change_mode(AudioMode::FFT(FFTSize::FFT16384));
     _rl.apply(&self.theme);
-  }
-
-  fn gui<G: RaylibDrawGui>(&mut self, d: &mut G) {
-    self.scale = d.gui_slider(
-      rrect(5, 5, 200, 30),
-      None, rayui::rayui_str!("Scale"), self.scale,
-      0.01, 2.0
-    );
   }
 
   fn draw(&self, d: &mut RaylibDrawHandle) {
@@ -108,8 +104,16 @@ impl Application for State {
     }
   }
 
+  fn gui<G: RaylibDrawGui>(&mut self, d: &mut G) {
+    self.scale = d.gui_slider(
+      rrect(5, 5, 200, 30),
+      None, rayui::rayui_str!("Scale"), self.scale,
+      0.01, 2.0
+    );
+  }
+
   fn raylib_options(&self) -> RaylibOptions {
-    self.settings.options.clone().unwrap_or_default().raylib
+    self.settings.options.clone()
   }
 }
 
