@@ -30,6 +30,7 @@ fn window_conf() -> Conf {
 #[derive(Serialize, Deserialize, Clone, Default)]
 struct Settings {
   audio: AudioSettings,
+  state: State,
 }
 
 impl SettingsManager for Settings {
@@ -49,32 +50,31 @@ impl AudioManager for App {
     let new_device = new_device.to_serializable(self.audio());
 
     match &new_device {
-      AudioDevice::None => self.state.audio.device_type = AudioDeviceType::None,
-      AudioDevice::Default => self.state.audio.device_type = AudioDeviceType::Default,
-      AudioDevice::Loopback => self.state.audio.device_type = AudioDeviceType::Loopback,
+      AudioDevice::None => self.settings.state.audio.device_type = AudioDeviceType::None,
+      AudioDevice::Default => self.settings.state.audio.device_type = AudioDeviceType::Default,
+      AudioDevice::Loopback => self.settings.state.audio.device_type = AudioDeviceType::Loopback,
       AudioDevice::Input(name) => {
-        self.state.audio.device_type = AudioDeviceType::Input;
-        self.state.audio.input_device = Some(name.clone());
+        self.settings.state.audio.device_type = AudioDeviceType::Input;
+        self.settings.state.audio.input_device = Some(name.clone());
       }
       AudioDevice::Output(name) => {
-        self.state.audio.device_type = AudioDeviceType::Output;
-        self.state.audio.output_device = Some(name.clone());
+        self.settings.state.audio.device_type = AudioDeviceType::Output;
+        self.settings.state.audio.output_device = Some(name.clone());
       }
     }
 
     self.audio_settings().device = new_device.clone();
     self.audio().change_device(new_device);
-
   }
 }
 
 struct App {
   settings: Settings,
   audio: Audio,
-  state: State,
 }
 
-#[derive(PartialEq, Debug)]
+
+#[derive(PartialEq, Debug, Clone)]
 enum AudioDeviceType {
   None,
   Default,
@@ -83,6 +83,7 @@ enum AudioDeviceType {
   Output,
 }
 
+#[derive(Clone)]
 struct AudioState {
   mode_index: usize,
   device_type: AudioDeviceType,
@@ -101,6 +102,7 @@ impl Default for AudioState {
   }
 }
 
+#[derive(Serialize, Deserialize, Clone)]
 struct VisualizerState {
   size: f32,
   radius: f32,
@@ -121,9 +123,10 @@ impl Default for VisualizerState {
   }
 }
 
+#[derive(Serialize, Deserialize, Clone)]
 struct State {
   visualizer: VisualizerState,
-  audio: AudioState,
+  #[serde(skip)] audio: AudioState,
   fg_color: [f32; 3],
   bg_color: [f32; 3],
   show_ui: bool,
@@ -147,11 +150,11 @@ impl Application for App {
     let audio = Audio::from(&settings.audio);
     let state = State::default();
 
-    Self { settings, audio, state }
+    Self { settings, audio }
   }
 
   fn setup(&mut self) {
-    self.state.audio.mode_index = AudioMode::ALL
+    self.settings.state.audio.mode_index = AudioMode::ALL
       .iter()
       .position(|it| *it == self.settings.audio.mode)
       .unwrap_or_default();
@@ -160,7 +163,7 @@ impl Application for App {
   }
 
   fn show_ui(&self) -> bool {
-    self.state.show_ui
+    self.settings.state.show_ui
   }
 
   fn ui_cfg(&self, ctx: &CtxRef) {
@@ -202,10 +205,9 @@ impl Application for App {
       .resizable(false)
       .default_width(200f32)
       .show(ctx, |ui| {
-        let limit = screen_width().min(screen_height()) / 2f32;
-
         egui::CollapsingHeader::new("Visualizer").default_open(true).show(ui, |ui| {
-          let state = &mut self.state.visualizer;
+          let limit = screen_width().min(screen_height()) / 2f32;
+          let state = &mut self.settings.state.visualizer;
 
           ui.add(egui::Slider::new(&mut state.size, 0.001f32..=5f32).text("Size"));
           ui.add(egui::Slider::new(&mut state.line_gap, 0.1f32..=5f32).text("Line Gap"));
@@ -215,37 +217,37 @@ impl Application for App {
         });
 
         egui::CollapsingHeader::new("Audio").default_open(true).show(ui, |ui| {
-          let name = AudioMode::ALL[self.state.audio.mode_index].name();
+          let name = AudioMode::ALL[self.settings.state.audio.mode_index].name();
 
           if ui.add(
-            egui::Slider::new(&mut self.state.audio.mode_index, 0..=AudioMode::ALL.len() - 1)
+            egui::Slider::new(&mut self.settings.state.audio.mode_index, 0..=AudioMode::ALL.len() - 1)
               .show_value(false)
               .text(format!("{}", name)),
           ).changed() {
-            self.change_mode(AudioMode::ALL[self.state.audio.mode_index]);
+            self.change_mode(AudioMode::ALL[self.settings.state.audio.mode_index]);
           }
 
           let response = egui::ComboBox::from_label("Device Type")
-            .selected_text(format!("{:?}", self.state.audio.device_type))
+            .selected_text(format!("{:?}", self.settings.state.audio.device_type))
             .show_ui(ui, |ui| {
               [
-                ui.selectable_value(&mut self.state.audio.device_type, AudioDeviceType::None, "None").clicked(),
-                ui.selectable_value(&mut self.state.audio.device_type, AudioDeviceType::Default, "Default").clicked(),
-                ui.selectable_value(&mut self.state.audio.device_type, AudioDeviceType::Loopback, "Loopback").clicked(),
-                ui.selectable_value(&mut self.state.audio.device_type, AudioDeviceType::Input, "Input").clicked(),
-                ui.selectable_value(&mut self.state.audio.device_type, AudioDeviceType::Output, "Output").clicked(),
+                ui.selectable_value(&mut self.settings.state.audio.device_type, AudioDeviceType::None, "None").clicked(),
+                ui.selectable_value(&mut self.settings.state.audio.device_type, AudioDeviceType::Default, "Default").clicked(),
+                ui.selectable_value(&mut self.settings.state.audio.device_type, AudioDeviceType::Loopback, "Loopback").clicked(),
+                ui.selectable_value(&mut self.settings.state.audio.device_type, AudioDeviceType::Input, "Input").clicked(),
+                ui.selectable_value(&mut self.settings.state.audio.device_type, AudioDeviceType::Output, "Output").clicked(),
               ]
             });
 
           let changed = response.inner.unwrap_or_default().contains(&true);
 
-          match self.state.audio.device_type {
+          match self.settings.state.audio.device_type {
             AudioDeviceType::None if changed => self.change_device(AudioDevice::NONE),
             AudioDeviceType::Default if changed => self.change_device(AudioDevice::DEFAULT),
             AudioDeviceType::Loopback if changed => self.change_device(AudioDevice::LOOPBACK),
             AudioDeviceType::Input => {
               egui::ComboBox::from_label("Input Device")
-                .selected_text(format!("{:.20}", self.state.audio.input_device.clone().unwrap_or_default()))
+                .selected_text(format!("{:.20}", self.settings.state.audio.input_device.clone().unwrap_or_default()))
                 .show_ui(ui, |ui| {
                   let devices = self.audio.host().input_devices().unwrap();
                   for device in devices {
@@ -262,7 +264,7 @@ impl Application for App {
             }
             AudioDeviceType::Output => {
               egui::ComboBox::from_label("Output Device")
-                .selected_text(format!("{:.20}", self.state.audio.output_device.clone().unwrap_or_default()))
+                .selected_text(format!("{:.20}", self.settings.state.audio.output_device.clone().unwrap_or_default()))
                 .show_ui(ui, |ui| {
                   let devices = self.audio.host().output_devices().unwrap();
                   for device in devices {
@@ -285,7 +287,7 @@ impl Application for App {
           ui.with_layout(
             egui::Layout::from_main_dir_and_cross_align(egui::Direction::LeftToRight, egui::Align::Min),
             |ui| {
-              ui.color_edit_button_rgb(&mut self.state.fg_color);
+              ui.color_edit_button_rgb(&mut self.settings.state.fg_color);
               ui.label("Foreground Color");
             },
           );
@@ -293,7 +295,7 @@ impl Application for App {
           ui.with_layout(
             egui::Layout::from_main_dir_and_cross_align(egui::Direction::LeftToRight, egui::Align::Min),
             |ui| {
-              ui.color_edit_button_rgb(&mut self.state.bg_color);
+              ui.color_edit_button_rgb(&mut self.settings.state.bg_color);
               ui.label("Background Color");
             },
           );
@@ -313,13 +315,13 @@ impl Application for App {
 
   fn before_draw(&mut self) {
     if is_key_pressed(KeyCode::H) {
-      self.state.show_ui = !self.state.show_ui;
+      self.settings.state.show_ui = !self.settings.state.show_ui;
     }
   }
 
   fn draw(&self) {
-    let state = &self.state.visualizer;
-    clear_background(self.state.bg_color.as_color());
+    let state = &self.settings.state.visualizer;
+    clear_background(self.settings.state.bg_color.as_color());
 
     if let Some(audio) = self.audio.data() {
       let len = audio.len();
@@ -328,7 +330,7 @@ impl Application for App {
 
       for i in 0..len {
         let value = audio[i] * 300f32 * state.size;
-        let mut color = self.state.fg_color.as_color();
+        let mut color = self.settings.state.fg_color.as_color();
         let gap = screen_width() / len as f32;
 
         color.r = clamp(color.r * audio[i] * 5f32, 0.2, 1.0);

@@ -33,6 +33,7 @@ impl Default for AudioSettings {
 pub trait SettingsManager: Sized + Serialize + DeserializeOwned + Default {
   const DEFAULT_PATH: &'static str = "./settings.json";
 
+
   fn load_from_path<P: AsRef<Path>>(path: P) -> std::io::Result<Self> {
     let file = File::open(path)?;
 

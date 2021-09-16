@@ -5,5 +5,25 @@
       "FFT": "16384"
     },
     "auto_play": true
+  },
+  "state": {
+    "visualizer": {
+      "size": 0.5,
+      "radius": 50.0,
+      "line_gap": 1.0,
+      "offset_x": 0.0,
+      "offset_y": 0.0
+    },
+    "fg_color": [
+      0.5234375,
+      0.0,
+      1.0
+    ],
+    "bg_color": [
+      0.125,
+      0.125,
+      0.125
+    ],
+    "show_ui": true
   }
 }
