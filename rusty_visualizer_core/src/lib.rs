@@ -1,4 +1,4 @@
-// pub extern crate cpal;
+pub extern crate cpal;
 pub extern crate crossbeam_utils;
 pub extern crate num_complex;
 pub extern crate num_traits;

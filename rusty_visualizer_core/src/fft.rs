@@ -10,18 +10,19 @@ pub enum FFTMode {
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
 #[allow(dead_code)]
+#[rustfmt::skip]
 pub enum FFTSize {
-  FFT16 = 16,
-  FFT32 = 32,
-  FFT64 = 64,
-  FFT128 = 128,
-  FFT256 = 256,
-  FFT512 = 512,
-  FFT1024 = 1024,
-  FFT2048 = 2048,
-  FFT4096 = 4096,
-  FFT8192 = 8192,
-  FFT16384 = 16384,
+  #[serde(rename = "16",    alias = "FFT16"   )] FFT16 =       16,
+  #[serde(rename = "32",    alias = "FFT32"   )] FFT32 =       32,
+  #[serde(rename = "64",    alias = "FFT64"   )] FFT64 =       64,
+  #[serde(rename = "128",   alias = "FFT128"  )] FFT128 =     128,
+  #[serde(rename = "256",   alias = "FFT256"  )] FFT256 =     256,
+  #[serde(rename = "512",   alias = "FFT512"  )] FFT512 =     512,
+  #[serde(rename = "1024",  alias = "FFT1024" )] FFT1024 =   1024,
+  #[serde(rename = "2048",  alias = "FFT2048" )] FFT2048 =   2048,
+  #[serde(rename = "4096",  alias = "FFT4096" )] FFT4096 =   4096,
+  #[serde(rename = "8192",  alias = "FFT8192" )] FFT8192 =   8192,
+  #[serde(rename = "16384", alias = "FFT16384")] FFT16384 = 16384,
 }
 
 fn inverse(data: &mut [Complex32], c: usize) {

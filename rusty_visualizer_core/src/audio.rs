@@ -9,28 +9,13 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::fft::{FFTMode, FFTSize, process_fft};
-use crate::settings::AudioSettingsRef;
+use crate::settings::AudioSettings;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub enum AudioMode {
   FFT(FFTSize),
   Wave,
 }
-
-
-// Doesn't work for enums
-// macro_rules! enum_name_const {
-//   ($(($n:literal, $v:path)),* $(,)?) => {
-//     pub const ALL_2: &'static [Self] = &[$($v),*];
-//     pub const ALL_NAMED_2: &'static [(&'static str, Self)] = &[$(($n, $v)),*];
-//
-//     pub const fn name_2(&self) -> &'static str {
-//       match self {
-//         $($v => $n),*
-//       }
-//     }
-//   };
-// }
 
 impl AudioMode {
   pub const ALL: &'static [Self] = &[
@@ -132,20 +117,20 @@ pub struct Audio {
   auto_play: bool,
 }
 
-impl<S: AudioSettingsRef> From<&S> for Audio {
-  fn from(settings: &S) -> Self {
+impl From<&AudioSettings> for Audio {
+  fn from(settings: &AudioSettings) -> Self {
     let host = cpal::default_host();
-    let mode = Arc::new(RwLock::new(*settings.mode()));
+    let mode = Arc::new(RwLock::new(settings.mode));
 
     let mut audio = Audio {
       host,
       mode,
       stream: None,
       receiver: None,
-      auto_play: settings.auto_play(),
+      auto_play: settings.auto_play,
     };
 
-    audio.change_device(settings.device().clone());
+    audio.change_device(settings.device.clone());
 
     return audio;
   }
@@ -166,48 +151,62 @@ impl AudioDevice {
   pub const LOOPBACK: Self = Self::Loopback;
 }
 
-impl <D: NamedAudioDevice> Default for AudioDevice<D> {
+impl<D: NamedAudioDevice> Default for AudioDevice<D> {
   fn default() -> Self {
     Self::Default
   }
 }
 
 pub trait NamedAudioDevice: Send {
-  fn get_device(self, host: &Host) -> Option<Device>;
+  fn to_device(self, host: &Host) -> Option<Device>;
 }
 
 pub trait NamedAudioDeviceWithConfig: Send {
-  fn get_device(self, host: &Host) -> Option<(SupportedStreamConfig, Device)>;
+  fn to_device(self, host: &Host) -> Option<(SupportedStreamConfig, Device)>;
+}
+
+pub trait ToSerializableAudioDevice {
+  fn to_serializable(self, audio: &Audio) -> AudioDevice<String>;
+}
+
+impl<D: NamedAudioDevice> ToSerializableAudioDevice for AudioDevice<D> {
+  fn to_serializable(self, audio: &Audio) -> AudioDevice<String> {
+    match self {
+      AudioDevice::None => AudioDevice::None,
+      AudioDevice::Default => AudioDevice::Default,
+      AudioDevice::Loopback => AudioDevice::Loopback,
+      AudioDevice::Input(device) => match device.to_device(audio.host()) {
+        None => AudioDevice::None,
+        Some(device) => AudioDevice::Input(device.name().unwrap_or_default()),
+      },
+      AudioDevice::Output(device) => match device.to_device(audio.host()) {
+        None => AudioDevice::None,
+        Some(device) => AudioDevice::Output(device.name().unwrap_or_default()),
+      },
+    }
+  }
 }
 
 impl<D: NamedAudioDevice> NamedAudioDeviceWithConfig for AudioDevice<D> {
-  fn get_device(self, host: &Host) -> Option<(SupportedStreamConfig, Device)> {
+  fn to_device(self, host: &Host) -> Option<(SupportedStreamConfig, Device)> {
     match self {
-      AudioDevice::Default => "default"
-        .get_device(host)
-        .map(|it| (it.default_input_config().unwrap(), it)),
-      AudioDevice::Loopback => "loopback"
-        .get_device(host)
-        .map(|it| (it.default_output_config().unwrap(), it)),
-      AudioDevice::Input(device) => device
-        .get_device(host)
-        .map(|it| (it.default_input_config().unwrap(), it)),
-      AudioDevice::Output(device) => device
-        .get_device(host)
-        .map(|it| (it.default_output_config().unwrap(), it)),
-      _ => None
+      AudioDevice::Default => "default".to_device(host).map(|it| (it.default_input_config().unwrap(), it)),
+      AudioDevice::Loopback => "loopback".to_device(host).map(|it| (it.default_output_config().unwrap(), it)),
+      AudioDevice::Input(device) => device.to_device(host).map(|it| (it.default_input_config().unwrap(), it)),
+      AudioDevice::Output(device) => device.to_device(host).map(|it| (it.default_output_config().unwrap(), it)),
+      _ => None,
     }
   }
 }
 
 impl NamedAudioDevice for () {
-  fn get_device(self, _host: &Host) -> Option<Device> {
+  fn to_device(self, _host: &Host) -> Option<Device> {
     None
   }
 }
 
 impl NamedAudioDevice for &str {
-  fn get_device(self, host: &Host) -> Option<Device> {
+  fn to_device(self, host: &Host) -> Option<Device> {
     match self {
       "default" => host.default_input_device(),
       "loopback" => host.default_output_device(),
@@ -221,13 +220,13 @@ impl NamedAudioDevice for &str {
 }
 
 impl NamedAudioDevice for String {
-  fn get_device(self, host: &Host) -> Option<Device> {
-    NamedAudioDevice::get_device(self.as_ref(), host)
+  fn to_device(self, host: &Host) -> Option<Device> {
+    NamedAudioDevice::to_device(self.as_ref(), host)
   }
 }
 
 impl NamedAudioDevice for Device {
-  fn get_device(self, _host: &Host) -> Option<Device> {
+  fn to_device(self, _host: &Host) -> Option<Device> {
     Some(self)
   }
 }
@@ -263,7 +262,7 @@ impl Audio {
 
   pub fn change_device(&mut self, new_device: impl NamedAudioDeviceWithConfig) {
     crossbeam_utils::thread::scope(|s| {
-      s.spawn(|_| match new_device.get_device(&self.host) {
+      s.spawn(|_| match new_device.to_device(&self.host) {
         None => {
           self.stream = None;
           self.receiver = None;

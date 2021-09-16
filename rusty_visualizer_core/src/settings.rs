@@ -5,31 +5,13 @@ use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::audio::{AudioDevice, AudioMode};
-
-pub trait AudioSettingsRef {
-  fn device(&self) -> &AudioDevice<String>;
-  fn mode(&self) -> &AudioMode;
-  fn auto_play(&self) -> bool;
-}
+use crate::audio::{AudioDevice, AudioMode, Audio, NamedAudioDeviceWithConfig, ToSerializableAudioDevice};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct AudioSettings {
   pub device: AudioDevice<String>,
   pub mode: AudioMode,
   pub auto_play: bool
-}
-
-impl AudioSettingsRef for AudioSettings {
-  fn device(&self) -> &AudioDevice<String> {
-    &self.device
-  }
-  fn mode(&self) -> &AudioMode {
-    &self.mode
-  }
-  fn auto_play(&self) -> bool {
-    self.auto_play
-  }
 }
 
 impl AudioSettings {
@@ -77,5 +59,22 @@ pub trait SettingsManager: Sized + Serialize + DeserializeOwned + Default {
 
   fn save_to_default_path(&self) -> std::io::Result<()> {
     self.save_to_path(Self::DEFAULT_PATH)
+  }
+}
+
+pub trait AudioManager {
+  fn audio_settings(&mut self) -> &mut AudioSettings;
+  fn audio(&mut self) -> &mut Audio;
+
+  fn change_mode(&mut self, new_mode: AudioMode) {
+    self.audio_settings().mode = new_mode;
+    self.audio().change_mode(new_mode);
+  }
+
+  fn change_device(&mut self, new_device: impl ToSerializableAudioDevice) {
+    let new_device = new_device.to_serializable(self.audio());
+
+    self.audio_settings().device = new_device.clone();
+    self.audio().change_device(new_device);
   }
 }
