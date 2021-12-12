@@ -1,4 +1,4 @@
-#![allow(dead_code, unused_variables)]
+#![allow(unused)]
 
 use std::f32::consts::TAU;
 
@@ -6,7 +6,7 @@ use egui::{Align, CtxRef};
 use macroquad::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use rusty_visualizer_core::audio::{Audio, AudioMode, AudioDevice, ToSerializableAudioDevice};
+use rusty_visualizer_core::audio::{Audio, AudioDevice, AudioMode, ToSerializableAudioDevice};
 use rusty_visualizer_core::cpal::traits::{DeviceTrait, HostTrait};
 use rusty_visualizer_core::settings::{AudioManager, AudioSettings, SettingsManager};
 
@@ -15,6 +15,8 @@ use crate::color::AsColor;
 
 mod application;
 mod color;
+
+const AUDIO_DEVICE_SWITCH_NOT_SUPPORT: &str = "Not supported on linux because ALSA is terrible, you can use something like pavucontrol instead";
 
 fn window_conf() -> Conf {
   Conf {
@@ -246,7 +248,10 @@ impl Application for App {
             AudioDeviceType::Default if changed => self.change_device(AudioDevice::DEFAULT),
             AudioDeviceType::Loopback if changed => self.change_device(AudioDevice::LOOPBACK),
             AudioDeviceType::Input => {
-              egui::ComboBox::from_label("Input Device")
+              #[cfg(target_os = "linux")]
+                ui.label(AUDIO_DEVICE_SWITCH_NOT_SUPPORT);
+              #[cfg(not(target_os = "linux"))]
+                egui::ComboBox::from_label("Input Device")
                 .selected_text(format!("{:.20}", self.settings.state.audio.input_device.clone().unwrap_or_default()))
                 .show_ui(ui, |ui| {
                   let devices = self.audio.host().input_devices().unwrap();
@@ -263,7 +268,10 @@ impl Application for App {
                 });
             }
             AudioDeviceType::Output => {
-              egui::ComboBox::from_label("Output Device")
+              #[cfg(target_os = "linux")]
+                ui.label(AUDIO_DEVICE_SWITCH_NOT_SUPPORT);
+              #[cfg(not(target_os = "linux"))]
+                egui::ComboBox::from_label("Output Device")
                 .selected_text(format!("{:.20}", self.settings.state.audio.output_device.clone().unwrap_or_default()))
                 .show_ui(ui, |ui| {
                   let devices = self.audio.host().output_devices().unwrap();

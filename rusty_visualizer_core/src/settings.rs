@@ -5,13 +5,14 @@ use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::audio::{AudioDevice, AudioMode, Audio, NamedAudioDeviceWithConfig, ToSerializableAudioDevice};
+use crate::audio::{Audio, AudioDevice, AudioMode, ToSerializableAudioDevice};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct AudioSettings {
   pub device: AudioDevice<String>,
   pub mode: AudioMode,
-  pub auto_play: bool
+  pub auto_play: bool,
+  pub auto_set: bool,
 }
 
 impl AudioSettings {
@@ -20,6 +21,7 @@ impl AudioSettings {
       device,
       mode: AudioMode::Wave,
       auto_play: true,
+      auto_set: true,
     }
   }
 }

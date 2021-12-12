@@ -4,7 +4,8 @@
     "mode": {
       "FFT": "16384"
     },
-    "auto_play": true
+    "auto_play": false,
+    "auto_set": false
   },
   "state": {
     "visualizer": {

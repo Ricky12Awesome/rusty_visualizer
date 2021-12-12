@@ -130,7 +130,9 @@ impl From<&AudioSettings> for Audio {
       auto_play: settings.auto_play,
     };
 
-    audio.change_device(settings.device.clone());
+    if settings.auto_set {
+      audio.change_device(settings.device.clone());
+    }
 
     return audio;
   }
@@ -293,6 +295,6 @@ impl Audio {
         }
       });
     })
-    .unwrap();
+      .unwrap();
   }
 }
