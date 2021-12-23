@@ -1,7 +1,7 @@
 pub trait Application {
   fn init() -> Self;
 
-  fn setup(&mut self) {}
+  fn setup(&mut self);
 
   fn show_ui(&self) -> bool {
     true

@@ -1,17 +1,22 @@
 #![allow(unused)]
 
 use std::f32::consts::TAU;
+use std::sync::{Arc, Mutex};
+use std::thread::{JoinHandle, spawn};
 
 use egui::{Align, CtxRef};
+use image::{DynamicImage, GenericImageView, RgbaImage};
 use macroquad::prelude::*;
 use serde::{Deserialize, Serialize};
+use spotify_info::{TrackHandle, TrackInfo, TrackListener, TrackState};
+use tokio::runtime;
 
 use rusty_visualizer_core::audio::{Audio, AudioDevice, AudioMode, ToSerializableAudioDevice};
 use rusty_visualizer_core::cpal::traits::{DeviceTrait, HostTrait};
 use rusty_visualizer_core::settings::{AudioManager, AudioSettings, SettingsManager};
 
 use crate::application::{Application, run_application};
-use crate::color::AsColor;
+use crate::color::{AsColor, GrayColor};
 
 mod application;
 mod color;
@@ -29,6 +34,7 @@ fn window_conf() -> Conf {
   }
 }
 
+//region Settings
 #[derive(Serialize, Deserialize, Clone, Default)]
 struct Settings {
   audio: AudioSettings,
@@ -69,13 +75,9 @@ impl AudioManager for App {
     self.audio().change_device(new_device);
   }
 }
+//endregion
 
-struct App {
-  settings: Settings,
-  audio: Audio,
-}
-
-
+//region State
 #[derive(PartialEq, Debug, Clone)]
 enum AudioDeviceType {
   None,
@@ -145,14 +147,88 @@ impl Default for State {
     }
   }
 }
+//endregion
+
+struct App {
+  settings: Settings,
+  audio: Audio,
+  runtime: tokio::runtime::Runtime,
+  loop_thread: tokio::task::JoinHandle<()>,
+  handle: TrackHandle,
+  track: TrackInfo,
+  state: TrackState,
+  cover_texture: Texture2D,
+  bg_texture: Texture2D,
+}
+
+impl App {
+  fn change_track_if_changed(&mut self) {
+    if let Some(track) = self.handle.read() {
+      self.state = track.state;
+
+      if !self.track.eq_ignore_state(&track) {
+        self.track = track;
+        self.track.state = TrackState::Stopped;
+        self.on_track_change();
+      }
+    }
+  }
+
+  fn get_image(url: &str, uid: &str) -> Option<RgbaImage> {
+    let cover = reqwest::blocking::get(url).ok()?.bytes().ok()?;
+    image::load_from_memory(&cover).map(|it| it.to_rgba8()).ok()
+  }
+
+  fn get_texture(url: &str, uid: &str) -> Texture2D {
+    match Self::get_image(url, uid) {
+      None => Texture2D::empty(),
+      Some(image) => Texture2D::from_rgba8(image.width() as u16, image.height() as u16, image.as_raw())
+    }
+  }
+
+  fn texture_center(texture: &Texture2D) -> (f32, f32) {
+    (screen_width() / 2f32 - texture.width() / 2f32, (screen_height() / 2f32 - texture.height() / 2f32))
+  }
+
+  fn on_track_change(&mut self) {
+    let uid = &self.track.uid;
+
+    if let Some(url) = self.track.cover_url.as_ref() {
+      self.cover_texture = Self::get_texture(url, uid);
+    }
+
+    if let Some(url) = self.track.background_url.as_ref() {
+      self.bg_texture = Self::get_texture(url, uid);
+    }
+  }
+}
 
 impl Application for App {
   fn init() -> Self {
     let settings = Settings::load();
     let audio = Audio::from(&settings.audio);
     let state = State::default();
+    let handle = TrackHandle::default();
+    let loop_handle = handle.clone();
 
-    Self { settings, audio }
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+
+    let loop_thread = runtime.spawn(async {
+      let listener = TrackListener::bind_default().await.unwrap();
+      listener.listen(loop_handle).await;
+    });
+
+    Self {
+      settings,
+      audio,
+      runtime,
+      loop_thread,
+      handle,
+      track: TrackInfo::default(),
+      state: TrackState::default(),
+      cover_texture: Texture2D::empty(),
+      bg_texture: Texture2D::empty(),
+    }
   }
 
   fn setup(&mut self) {
@@ -164,6 +240,7 @@ impl Application for App {
     self.change_device(self.settings.audio.device.clone());
   }
 
+  //region UI
   fn show_ui(&self) -> bool {
     self.settings.state.show_ui
   }
@@ -224,7 +301,7 @@ impl Application for App {
           if ui.add(
             egui::Slider::new(&mut self.settings.state.audio.mode_index, 0..=AudioMode::ALL.len() - 1)
               .show_value(false)
-              .text(format!("{}", name)),
+              .text(name.to_string()),
           ).changed() {
             self.change_mode(AudioMode::ALL[self.settings.state.audio.mode_index]);
           }
@@ -309,6 +386,13 @@ impl Application for App {
           );
         });
 
+        egui::CollapsingHeader::new("Currently Playing track").default_open(true).show(ui, |ui| {
+          ui.label(format!("Title - {}", self.track.title));
+          ui.label(format!("Artist - {:?}", self.track.artist));
+          ui.label(format!("Album - {}", self.track.album));
+          ui.label(format!("State - {:?}", self.state));
+        });
+
         ui.with_layout(egui::Layout::bottom_up(Align::Min), |ui| {
           ui.add_space(6f32);
 
@@ -320,8 +404,11 @@ impl Application for App {
         });
       });
   }
+  //endregion
 
   fn before_draw(&mut self) {
+    self.change_track_if_changed();
+
     if is_key_pressed(KeyCode::H) {
       self.settings.state.show_ui = !self.settings.state.show_ui;
     }
@@ -330,6 +417,14 @@ impl Application for App {
   fn draw(&self) {
     let state = &self.settings.state.visualizer;
     clear_background(self.settings.state.bg_color.as_color());
+
+    let color = if matches!(self.state, TrackState::Playing) { 192 } else { 64 };
+
+    let (x, y) = App::texture_center(&self.bg_texture);
+    draw_texture(self.bg_texture, x, y, Color::gray_scale(color));
+
+    let (x, y) = App::texture_center(&self.cover_texture);
+    draw_texture(self.cover_texture, x, y, Color::gray_scale(color));
 
     if let Some(audio) = self.audio.data() {
       let len = audio.len();

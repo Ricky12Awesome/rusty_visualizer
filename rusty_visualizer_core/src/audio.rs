@@ -216,7 +216,7 @@ impl NamedAudioDevice for &str {
       _ => host
         .devices()
         .unwrap()
-        .find(|it| it.name().unwrap_or(String::from("")) == self),
+        .find(|it| it.name().unwrap_or_else(|_| String::from("")) == self),
     }
   }
 }
@@ -235,11 +235,7 @@ impl NamedAudioDevice for Device {
 
 impl Audio {
   pub fn is_mode_fft(&self) -> bool {
-    if let AudioMode::FFT(_) = self.mode() {
-      true
-    } else {
-      false
-    }
+    matches!(self.mode(), AudioMode::FFT(_))
   }
 
   pub fn host(&self) -> &Host {
