@@ -10,7 +10,7 @@
   "state": {
     "visualizer": {
       "size": 0.5,
-      "radius": 50.0,
+      "radius": 35.0,
       "line_gap": 1.0,
       "offset_x": 0.0,
       "offset_y": 0.0

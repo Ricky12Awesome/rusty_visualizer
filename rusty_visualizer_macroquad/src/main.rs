@@ -16,9 +16,12 @@ use rusty_visualizer_core::cpal::traits::{DeviceTrait, HostTrait};
 use rusty_visualizer_core::settings::{AudioManager, AudioSettings, SettingsManager};
 
 use crate::application::{Application, run_application};
+use crate::cache::{ImageCache, ImageCacheType};
 use crate::color::{AsColor, GrayColor};
+use crate::miniquad::conf::Cache;
 
 mod application;
+mod cache;
 mod color;
 
 const AUDIO_DEVICE_SWITCH_NOT_SUPPORT: &str = "Not supported on linux because ALSA is terrible, you can use something like pavucontrol instead";
@@ -157,6 +160,7 @@ struct App {
   handle: TrackHandle,
   track: TrackInfo,
   state: TrackState,
+  cache: ImageCache,
   cover_texture: Texture2D,
   bg_texture: Texture2D,
 }
@@ -174,13 +178,24 @@ impl App {
     }
   }
 
-  fn get_image(url: &str, uid: &str) -> Option<RgbaImage> {
-    let cover = reqwest::blocking::get(url).ok()?.bytes().ok()?;
-    image::load_from_memory(&cover).map(|it| it.to_rgba8()).ok()
+  fn get_image(
+    &mut self,
+    url: &str,
+    uid: String,
+    typ: ImageCacheType,
+    size: (Option<u32>, Option<u32>),
+  ) -> Option<&RgbaImage> {
+    self.cache.get(uid, url, typ, size)
   }
 
-  fn get_texture(url: &str, uid: &str) -> Texture2D {
-    match Self::get_image(url, uid) {
+  fn get_texture(
+    &mut self,
+    url: &str,
+    uid: String,
+    typ: ImageCacheType,
+    size: (Option<u32>, Option<u32>),
+  ) -> Texture2D {
+    match self.get_image(url, uid, typ, size) {
       None => Texture2D::empty(),
       Some(image) => Texture2D::from_rgba8(image.width() as u16, image.height() as u16, image.as_raw())
     }
@@ -190,16 +205,29 @@ impl App {
     (screen_width() / 2f32 - texture.width() / 2f32, (screen_height() / 2f32 - texture.height() / 2f32))
   }
 
+  fn set_textures(&mut self, force: bool) {
+    let uid = self.track.uid.clone();
+
+    if let Some(url) = self.track.cover_url.clone() {
+      self.cache.set_texture(
+        &mut self.cover_texture,
+        uid.clone(), &url, force,
+        ImageCacheType::Cover, (Some(384), Some(384)),
+      );
+    }
+
+    if let Some(url) = self.track.background_url.clone() {
+      self.cache.set_texture(
+        &mut self.bg_texture,
+        uid, &url, force,
+        ImageCacheType::Background,
+        (Some(screen_width() as u32), Some(screen_height() as u32)),
+      );
+    }
+  }
+
   fn on_track_change(&mut self) {
-    let uid = &self.track.uid;
-
-    if let Some(url) = self.track.cover_url.as_ref() {
-      self.cover_texture = Self::get_texture(url, uid);
-    }
-
-    if let Some(url) = self.track.background_url.as_ref() {
-      self.bg_texture = Self::get_texture(url, uid);
-    }
+    self.set_textures(true);
   }
 }
 
@@ -224,6 +252,7 @@ impl Application for App {
       runtime,
       loop_thread,
       handle,
+      cache: ImageCache::default(),
       track: TrackInfo::default(),
       state: TrackState::default(),
       cover_texture: Texture2D::empty(),
@@ -256,15 +285,20 @@ impl Application for App {
     let mut fonts = egui::FontDefinitions::default();
 
     fonts.font_data.insert(
-      "Roboto-Regular".to_string(),
-      std::borrow::Cow::Borrowed(include_bytes!("../../assets/Roboto-Regular.ttf")),
+      "NotoSans-Regular".to_string(),
+      std::borrow::Cow::Borrowed(include_bytes!("../../assets/NotoSans-Regular.ttf")),
     );
 
-    fonts
-      .fonts_for_family
-      .get_mut(&egui::FontFamily::Proportional)
-      .unwrap()
-      .insert(0, "Roboto-Regular".to_owned());
+    fonts.font_data.insert(
+      "NotoSansJP-Regular".to_string(),
+      std::borrow::Cow::Borrowed(include_bytes!("../../assets/NotoSansJP-Regular.otf")),
+    );
+
+    let fonts_list = fonts.fonts_for_family.get_mut(&egui::FontFamily::Proportional).unwrap();
+
+    fonts_list.clear();
+    fonts_list.push("NotoSans-Regular".to_owned());
+    fonts_list.push("NotoSansJP-Regular".to_owned());
 
     let size = 22f32;
     let family = &mut fonts.family_and_size;
@@ -408,6 +442,7 @@ impl Application for App {
 
   fn before_draw(&mut self) {
     self.change_track_if_changed();
+    self.set_textures(false);
 
     if is_key_pressed(KeyCode::H) {
       self.settings.state.show_ui = !self.settings.state.show_ui;
