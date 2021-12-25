@@ -1,10 +1,13 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::fs::{create_dir, create_dir_all, File};
+use std::io::BufReader;
 use std::ops::Index;
+use std::path::Path;
 use std::sync::RwLock;
 use image::imageops::FilterType;
 
-use image::{DynamicImage, RgbaImage};
+use image::{DynamicImage, ImageFormat, RgbaImage};
 use macroquad::prelude::Texture2D;
 
 #[derive(Debug, Default)]
@@ -51,6 +54,35 @@ impl ImageCache {
     }
   }
 
+  pub fn get_image(id: &str, url: &str, cache_type: ImageCacheType) -> Option<DynamicImage> {
+    let path = match cache_type {
+      ImageCacheType::Cover => "cover".to_string(),
+      ImageCacheType::Background => "background".to_string(),
+      ImageCacheType::Custom(id) => format!("custom_{}", id)
+    };
+
+    let path = Path::new("./.cache").join(path).join(&format!("{}.jpg", id));
+
+    if path.exists() {
+      let file = File::open(path).ok()?;
+      let image = image::load(BufReader::new(file), ImageFormat::Jpeg).ok()?;
+
+      Some(image)
+    } else {
+      let bytes = reqwest::blocking::get(url).ok()?.bytes().ok()?;
+      let image = image::load_from_memory(&bytes).ok()?;
+
+      if !path.parent().unwrap().exists() {
+        create_dir_all(path.parent().unwrap()).ok()?;
+      }
+
+      println!("Saving {}.jpg to {:?}", id, path.parent().unwrap());
+      image.save_with_format(path, ImageFormat::Jpeg);
+
+      Some(image)
+    }
+  }
+
   pub fn get(
     &mut self,
     id: String,
@@ -63,8 +95,7 @@ impl ImageCache {
 
     // TODO: File caching
     if !base_cache.contains_key(&id) {
-      let bytes = reqwest::blocking::get(url).ok()?.bytes().ok()?;
-      let image = image::load_from_memory(&bytes).ok()?;
+      let image = Self::get_image(&id, url, cache_type)?;
 
       base_cache.insert(id.clone(), image.clone());
       resize_cache.insert(id.clone(), image.to_rgba8());

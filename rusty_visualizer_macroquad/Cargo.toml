@@ -7,8 +7,9 @@ edition = "2018"
 
 [dependencies]
 macroquad = { version = "^0.3", default-features = false } # Disable Audio
-egui-macroquad = "0.6.1" # I need to disable audio for this, but can't
-egui = "0.14.2" # Needs to be 0.14, 0.15 since it breaks depend above
+egui-macroquad = "0.7" # I need to disable audio for this, but can't
+egui = "0.15"
+#egui = { git = "https://github.com/Ricky12Awesome/egui/", branch = "0.15.0-custom" }
 rusty_visualizer_core = { path = "../rusty_visualizer_core" }
 serde = { version = "^1", features = ["derive"] }
 serde_json = "^1"

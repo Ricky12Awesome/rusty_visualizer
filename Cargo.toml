@@ -3,3 +3,6 @@ members = [
     "rusty_visualizer_raylib",
     "rusty_visualizer_macroquad",
 ]
+
+#[patch.crates-io]
+#egui = { git = "https://github.com/Ricky12Awesome/egui/", branch = "0.15.0-custom" }

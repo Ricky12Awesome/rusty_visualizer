@@ -136,6 +136,7 @@
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/cpal-a85973961e9e77bc/out" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/rusty_visualizer_core/target" />
+      <excludeFolder url="file://$MODULE_DIR$/.cache" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

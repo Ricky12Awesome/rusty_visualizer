@@ -4,7 +4,7 @@ use std::f32::consts::TAU;
 use std::sync::{Arc, Mutex};
 use std::thread::{JoinHandle, spawn};
 
-use egui::{Align, CtxRef};
+use egui::{Align, CtxRef, Order};
 use image::{DynamicImage, GenericImageView, RgbaImage};
 use macroquad::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -19,12 +19,17 @@ use crate::application::{Application, run_application};
 use crate::cache::{ImageCache, ImageCacheType};
 use crate::color::{AsColor, GrayColor};
 use crate::miniquad::conf::Cache;
+use crate::util::better_draw_text;
 
 mod application;
 mod cache;
 mod color;
+mod util;
 
 const AUDIO_DEVICE_SWITCH_NOT_SUPPORT: &str = "Not supported on linux because ALSA is terrible, you can use something like pavucontrol instead";
+
+const NOTO_SANS: &[u8] = include_bytes!("../../assets/NotoSans-Regular.ttf");
+const NOTO_SANS_JP: &[u8] = include_bytes!("../../assets/NotoSansJP-Regular.otf");
 
 fn window_conf() -> Conf {
   Conf {
@@ -163,6 +168,7 @@ struct App {
   cache: ImageCache,
   cover_texture: Texture2D,
   bg_texture: Texture2D,
+  font: Font,
 }
 
 impl App {
@@ -201,8 +207,12 @@ impl App {
     }
   }
 
-  fn texture_center(texture: &Texture2D) -> (f32, f32) {
+  fn center(texture: &Texture2D) -> (f32, f32) {
     (screen_width() / 2f32 - texture.width() / 2f32, (screen_height() / 2f32 - texture.height() / 2f32))
+  }
+
+  fn bottom_left(texture: &Texture2D) -> (f32, f32) {
+    (00f32, screen_height() - texture.height())
   }
 
   fn set_textures(&mut self, force: bool) {
@@ -212,7 +222,7 @@ impl App {
       self.cache.set_texture(
         &mut self.cover_texture,
         uid.clone(), &url, force,
-        ImageCacheType::Cover, (Some(384), Some(384)),
+        ImageCacheType::Cover, (Some(256), Some(256)),
       );
     }
 
@@ -246,6 +256,10 @@ impl Application for App {
       listener.listen(loop_handle).await;
     });
 
+
+    let noto_sans = load_ttf_font_from_bytes(NOTO_SANS).unwrap();
+    // let noto_sans_jp = load_ttf_font_from_bytes(NOTO_SANS_JP).unwrap();
+
     Self {
       settings,
       audio,
@@ -257,6 +271,7 @@ impl Application for App {
       state: TrackState::default(),
       cover_texture: Texture2D::empty(),
       bg_texture: Texture2D::empty(),
+      font: noto_sans,
     }
   }
 
@@ -286,12 +301,12 @@ impl Application for App {
 
     fonts.font_data.insert(
       "NotoSans-Regular".to_string(),
-      std::borrow::Cow::Borrowed(include_bytes!("../../assets/NotoSans-Regular.ttf")),
+      std::borrow::Cow::Borrowed(NOTO_SANS),
     );
 
     fonts.font_data.insert(
       "NotoSansJP-Regular".to_string(),
-      std::borrow::Cow::Borrowed(include_bytes!("../../assets/NotoSansJP-Regular.otf")),
+      std::borrow::Cow::Borrowed(NOTO_SANS_JP),
     );
 
     let fonts_list = fonts.fonts_for_family.get_mut(&egui::FontFamily::Proportional).unwrap();
@@ -306,7 +321,7 @@ impl Application for App {
     family.insert(egui::TextStyle::Small, (egui::FontFamily::Proportional, size));
     family.insert(egui::TextStyle::Body, (egui::FontFamily::Proportional, size));
     family.insert(egui::TextStyle::Button, (egui::FontFamily::Proportional, size));
-    family.insert(egui::TextStyle::Heading, (egui::FontFamily::Proportional, size * 1.2));
+    family.insert(egui::TextStyle::Heading, (egui::FontFamily::Proportional, 48.0));
     family.insert(egui::TextStyle::Monospace, (egui::FontFamily::Proportional, size));
 
     ctx.set_style(style);
@@ -314,6 +329,10 @@ impl Application for App {
   }
 
   fn ui(&mut self, ctx: &CtxRef) {
+    let id = egui::Id::new("UI");
+    let layer = egui::LayerId::new(Order::Debug, id);
+    let mut ui = egui::Ui::new(ctx.clone(), layer, id, ctx.available_rect(), ctx.input().screen_rect);
+
     egui::SidePanel::left("Settings")
       .resizable(false)
       .default_width(200f32)
@@ -449,17 +468,26 @@ impl Application for App {
     }
   }
 
-  fn draw(&self) {
+  fn draw(&self, ctx: &CtxRef) {
     let state = &self.settings.state.visualizer;
     clear_background(self.settings.state.bg_color.as_color());
 
-    let color = if matches!(self.state, TrackState::Playing) { 192 } else { 64 };
+    let color = if matches!(self.state, TrackState::Playing) { 128 } else { 32 };
 
-    let (x, y) = App::texture_center(&self.bg_texture);
+    let (x, y) = App::center(&self.bg_texture);
     draw_texture(self.bg_texture, x, y, Color::gray_scale(color));
 
-    let (x, y) = App::texture_center(&self.cover_texture);
-    draw_texture(self.cover_texture, x, y, Color::gray_scale(color));
+    let (x, y) = App::bottom_left(&self.cover_texture);
+    draw_texture(self.cover_texture, 70f32 + x, y - 150f32, Color::gray_scale(color + 96));
+
+    better_draw_text(ctx, "ZCover", &self.track.title, 70f32 + x, y + 120f32, 48, Color::gray_scale(240));
+    // draw_text_ex(&self.track.title, 70f32 + x, y + 175f32, TextParams {
+    //   font_size: 48,
+    //   font_scale: 1.0,
+    //   color: Color::gray_scale(240),
+    //   font: self.font,
+    //   ..Default::default()
+    // });
 
     if let Some(audio) = self.audio.data() {
       let len = audio.len();
