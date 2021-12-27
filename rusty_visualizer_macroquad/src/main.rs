@@ -1,15 +1,13 @@
 #![allow(unused)]
 
+use std::borrow::Cow;
 use std::f32::consts::TAU;
-use std::sync::{Arc, Mutex};
-use std::thread::{JoinHandle, spawn};
 
 use egui::{Align, CtxRef, Order};
-use image::{DynamicImage, GenericImageView, RgbaImage};
+use image::RgbaImage;
 use macroquad::prelude::*;
 use serde::{Deserialize, Serialize};
 use spotify_info::{TrackHandle, TrackInfo, TrackListener, TrackState};
-use tokio::runtime;
 
 use rusty_visualizer_core::audio::{Audio, AudioDevice, AudioMode, ToSerializableAudioDevice};
 use rusty_visualizer_core::cpal::traits::{DeviceTrait, HostTrait};
@@ -18,8 +16,7 @@ use rusty_visualizer_core::settings::{AudioManager, AudioSettings, SettingsManag
 use crate::application::{Application, run_application};
 use crate::cache::{ImageCache, ImageCacheType};
 use crate::color::{AsColor, GrayColor};
-use crate::miniquad::conf::Cache;
-use crate::util::better_draw_text;
+use crate::util::{egui_draw_text, font_def};
 
 mod application;
 mod cache;
@@ -28,8 +25,8 @@ mod util;
 
 const AUDIO_DEVICE_SWITCH_NOT_SUPPORT: &str = "Not supported on linux because ALSA is terrible, you can use something like pavucontrol instead";
 
-const NOTO_SANS: &[u8] = include_bytes!("../../assets/NotoSans-Regular.ttf");
-const NOTO_SANS_JP: &[u8] = include_bytes!("../../assets/NotoSansJP-Regular.otf");
+pub const NOTO_SANS: &[u8] = include_bytes!("../../assets/NotoSans-Regular.ttf");
+pub const NOTO_SANS_JP: &[u8] = include_bytes!("../../assets/NotoSansJP-Regular.otf");
 
 fn window_conf() -> Conf {
   Conf {
@@ -297,32 +294,7 @@ impl Application for App {
     style.visuals.selection.bg_fill = accent;
     style.spacing.slider_width = 200f32;
 
-    let mut fonts = egui::FontDefinitions::default();
-
-    fonts.font_data.insert(
-      "NotoSans-Regular".to_string(),
-      std::borrow::Cow::Borrowed(NOTO_SANS),
-    );
-
-    fonts.font_data.insert(
-      "NotoSansJP-Regular".to_string(),
-      std::borrow::Cow::Borrowed(NOTO_SANS_JP),
-    );
-
-    let fonts_list = fonts.fonts_for_family.get_mut(&egui::FontFamily::Proportional).unwrap();
-
-    fonts_list.clear();
-    fonts_list.push("NotoSans-Regular".to_owned());
-    fonts_list.push("NotoSansJP-Regular".to_owned());
-
-    let size = 22f32;
-    let family = &mut fonts.family_and_size;
-
-    family.insert(egui::TextStyle::Small, (egui::FontFamily::Proportional, size));
-    family.insert(egui::TextStyle::Body, (egui::FontFamily::Proportional, size));
-    family.insert(egui::TextStyle::Button, (egui::FontFamily::Proportional, size));
-    family.insert(egui::TextStyle::Heading, (egui::FontFamily::Proportional, 48.0));
-    family.insert(egui::TextStyle::Monospace, (egui::FontFamily::Proportional, size));
+    let mut fonts = font_def(22f32, 48f32);
 
     ctx.set_style(style);
     ctx.set_fonts(fonts);
@@ -480,7 +452,7 @@ impl Application for App {
     let (x, y) = App::bottom_left(&self.cover_texture);
     draw_texture(self.cover_texture, 70f32 + x, y - 150f32, Color::gray_scale(color + 96));
 
-    better_draw_text(ctx, "ZCover", &self.track.title, 70f32 + x, y + 120f32, 48, Color::gray_scale(240));
+    egui_draw_text(ctx, &self.track.title, 70f32 + x, y + 120f32, 48, Color::gray_scale(240));
     // draw_text_ex(&self.track.title, 70f32 + x, y + 175f32, TextParams {
     //   font_size: 48,
     //   font_scale: 1.0,

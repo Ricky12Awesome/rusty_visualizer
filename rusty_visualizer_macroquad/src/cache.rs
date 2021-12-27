@@ -93,9 +93,8 @@ impl ImageCache {
     let base_cache = self.base_cache.entry(cache_type).or_insert_with(HashMap::new);
     let resize_cache = self.resize_cache.entry(cache_type).or_insert_with(HashMap::new);
 
-    // TODO: File caching
     if !base_cache.contains_key(&id) {
-      let image = Self::get_image(&id, url, cache_type)?;
+      let image = Self::get_image(&id, url, cache_type).unwrap_or_else(|| image::DynamicImage::new_rgba8(1, 1));
 
       base_cache.insert(id.clone(), image.clone());
       resize_cache.insert(id.clone(), image.to_rgba8());
