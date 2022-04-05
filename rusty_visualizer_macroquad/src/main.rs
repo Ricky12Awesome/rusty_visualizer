@@ -2,12 +2,15 @@
 
 use std::borrow::Cow;
 use std::f32::consts::TAU;
+use std::sync::{Arc, RwLock, RwLockReadGuard};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use egui::{Align, CtxRef, Order};
 use image::RgbaImage;
 use macroquad::prelude::*;
+use macroquad_text::Fonts;
 use serde::{Deserialize, Serialize};
-use spotify_info::{TrackHandle, TrackInfo, TrackListener, TrackState};
+use spotify_info::{SpotifyEvent, SpotifyListener, TrackInfo, TrackState};
 
 use rusty_visualizer_core::audio::{Audio, AudioDevice, AudioMode, ToSerializableAudioDevice};
 use rusty_visualizer_core::cpal::traits::{DeviceTrait, HostTrait};
@@ -27,6 +30,9 @@ const AUDIO_DEVICE_SWITCH_NOT_SUPPORT: &str = "Not supported on linux because AL
 
 pub const NOTO_SANS: &[u8] = include_bytes!("../../assets/NotoSans-Regular.ttf");
 pub const NOTO_SANS_JP: &[u8] = include_bytes!("../../assets/NotoSansJP-Regular.otf");
+pub const NOTO_SANS_KR: &[u8] = include_bytes!("../../assets/NotoSansKR-Regular.otf");
+pub const NOTO_SANS_SC: &[u8] = include_bytes!("../../assets/NotoSansSC-Regular.otf");
+pub const NOTO_SANS_TC: &[u8] = include_bytes!("../../assets/NotoSansTC-Regular.otf");
 
 fn window_conf() -> Conf {
   Conf {
@@ -158,27 +164,24 @@ struct App {
   settings: Settings,
   audio: Audio,
   runtime: tokio::runtime::Runtime,
-  loop_thread: tokio::task::JoinHandle<()>,
-  handle: TrackHandle,
-  track: TrackInfo,
-  state: TrackState,
+  loop_thread: Option<tokio::task::JoinHandle<()>>,
+  track: Arc<RwLock<TrackInfo>>,
+  state: Arc<RwLock<TrackState>>,
+  progress: Arc<RwLock<f32>>,
+  changed: Arc<AtomicBool>,
   cache: ImageCache,
   cover_texture: Texture2D,
   bg_texture: Texture2D,
-  font: Font,
+  fonts: Fonts,
 }
 
 impl App {
-  fn change_track_if_changed(&mut self) {
-    if let Some(track) = self.handle.read() {
-      self.state = track.state;
+  fn get_track(&self) -> RwLockReadGuard<TrackInfo> {
+    self.track.read().unwrap()
+  }
 
-      if !self.track.eq_ignore_state(&track) {
-        self.track = track;
-        self.track.state = TrackState::Stopped;
-        self.on_track_change();
-      }
-    }
+  fn get_track_state(&self) -> TrackState {
+    *self.state.read().unwrap()
   }
 
   fn get_image(
@@ -213,28 +216,38 @@ impl App {
   }
 
   fn set_textures(&mut self, force: bool) {
-    let uid = self.track.uid.clone();
+    let track = self.get_track().clone();
+    let uid = track.uid.clone();
 
-    if let Some(url) = self.track.cover_url.clone() {
-      self.cache.set_texture(
-        &mut self.cover_texture,
-        uid.clone(), &url, force,
-        ImageCacheType::Cover, (Some(256), Some(256)),
-      );
+    match track.cover_url.clone() {
+      Some(url) => {
+        self.cache.set_texture(
+          &mut self.cover_texture,
+          uid.clone(), &url, force,
+          ImageCacheType::Cover, (Some(256), Some(256)),
+        );
+      }
+      None => self.cover_texture = Texture2D::empty(),
     }
 
-    if let Some(url) = self.track.background_url.clone() {
-      self.cache.set_texture(
-        &mut self.bg_texture,
-        uid, &url, force,
-        ImageCacheType::Background,
-        (Some(screen_width() as u32), Some(screen_height() as u32)),
-      );
+    match track.background_url {
+      Some(url) => {
+        self.cache.set_texture(
+          &mut self.bg_texture,
+          uid, &url, force,
+          ImageCacheType::Background,
+          (Some(screen_width() as u32), Some(screen_height() as u32)),
+        );
+      }
+      None => self.bg_texture = Texture2D::empty(),
     }
   }
 
   fn on_track_change(&mut self) {
-    self.set_textures(true);
+    if self.changed.load(Ordering::SeqCst) {
+      self.set_textures(true);
+      self.changed.store(false, Ordering::SeqCst);
+    }
   }
 }
 
@@ -243,32 +256,32 @@ impl Application for App {
     let settings = Settings::load();
     let audio = Audio::from(&settings.audio);
     let state = State::default();
-    let handle = TrackHandle::default();
-    let loop_handle = handle.clone();
 
     let runtime = tokio::runtime::Runtime::new().unwrap();
 
-    let loop_thread = runtime.spawn(async {
-      let listener = TrackListener::bind_default().await.unwrap();
-      listener.listen(loop_handle).await;
-    });
-
-
-    let noto_sans = load_ttf_font_from_bytes(NOTO_SANS).unwrap();
+    let mut fonts = Fonts::default();
+    // let noto_sans = load_ttf_font_from_bytes(NOTO_SANS).unwrap();
     // let noto_sans_jp = load_ttf_font_from_bytes(NOTO_SANS_JP).unwrap();
+
+    fonts.load_font_from_bytes(NOTO_SANS).unwrap();
+    fonts.load_font_from_bytes(NOTO_SANS_JP).unwrap();
+    fonts.load_font_from_bytes(NOTO_SANS_KR).unwrap();
+    fonts.load_font_from_bytes(NOTO_SANS_SC).unwrap();
+    fonts.load_font_from_bytes(NOTO_SANS_TC).unwrap();
 
     Self {
       settings,
       audio,
       runtime,
-      loop_thread,
-      handle,
+      loop_thread: None,
       cache: ImageCache::default(),
-      track: TrackInfo::default(),
-      state: TrackState::default(),
+      track: Arc::default(),
+      state: Arc::default(),
+      progress: Arc::default(),
+      changed: Arc::default(),
       cover_texture: Texture2D::empty(),
       bg_texture: Texture2D::empty(),
-      font: noto_sans,
+      fonts,
     }
   }
 
@@ -279,6 +292,28 @@ impl Application for App {
       .unwrap_or_default();
 
     self.change_device(self.settings.audio.device.clone());
+
+    let track = self.track.clone();
+    let state = self.state.clone();
+    let progress = self.progress.clone();
+    let changed = self.changed.clone();
+
+    let loop_thread = Some(self.runtime.spawn(async move {
+      let listener = SpotifyListener::bind_default().await.unwrap();
+
+      while let Ok(mut connection) = listener.get_connection().await {
+        while let Some(Ok(event)) = connection.next().await {
+          match event {
+            SpotifyEvent::TrackChanged(data) => {
+              *track.write().unwrap() = data;
+              changed.store(true, Ordering::SeqCst);
+            }
+            SpotifyEvent::StateChanged(data) => *state.write().unwrap() = data,
+            SpotifyEvent::ProgressChanged(data) => *progress.write().unwrap() = data as f32,
+          }
+        }
+      }
+    }));
   }
 
   //region UI
@@ -351,9 +386,9 @@ impl Application for App {
             AudioDeviceType::Loopback if changed => self.change_device(AudioDevice::LOOPBACK),
             AudioDeviceType::Input => {
               #[cfg(target_os = "linux")]
-                ui.label(AUDIO_DEVICE_SWITCH_NOT_SUPPORT);
+              ui.label(AUDIO_DEVICE_SWITCH_NOT_SUPPORT);
               #[cfg(not(target_os = "linux"))]
-                egui::ComboBox::from_label("Input Device")
+              egui::ComboBox::from_label("Input Device")
                 .selected_text(format!("{:.20}", self.settings.state.audio.input_device.clone().unwrap_or_default()))
                 .show_ui(ui, |ui| {
                   let devices = self.audio.host().input_devices().unwrap();
@@ -371,9 +406,9 @@ impl Application for App {
             }
             AudioDeviceType::Output => {
               #[cfg(target_os = "linux")]
-                ui.label(AUDIO_DEVICE_SWITCH_NOT_SUPPORT);
+              ui.label(AUDIO_DEVICE_SWITCH_NOT_SUPPORT);
               #[cfg(not(target_os = "linux"))]
-                egui::ComboBox::from_label("Output Device")
+              egui::ComboBox::from_label("Output Device")
                 .selected_text(format!("{:.20}", self.settings.state.audio.output_device.clone().unwrap_or_default()))
                 .show_ui(ui, |ui| {
                   let devices = self.audio.host().output_devices().unwrap();
@@ -412,10 +447,14 @@ impl Application for App {
         });
 
         egui::CollapsingHeader::new("Currently Playing track").default_open(true).show(ui, |ui| {
-          ui.label(format!("Title - {}", self.track.title));
-          ui.label(format!("Artist - {:?}", self.track.artist));
-          ui.label(format!("Album - {}", self.track.album));
-          ui.label(format!("State - {:?}", self.state));
+          let track = self.get_track();
+
+          ui.label(format!("Title - {}", track.title));
+          ui.label(format!("Artist - {:?}", track.artist));
+          ui.label(format!("Album - {}", track.album));
+          ui.label(format!("State - {:?}", self.get_track_state()));
+          ui.label(format!("Cover Art - {:?}", track.cover_url));
+          ui.label(format!("Background Url - {:?}", track.background_url));
         });
 
         ui.with_layout(egui::Layout::bottom_up(Align::Min), |ui| {
@@ -432,7 +471,7 @@ impl Application for App {
   //endregion
 
   fn before_draw(&mut self) {
-    self.change_track_if_changed();
+    self.on_track_change();
     self.set_textures(false);
 
     if is_key_pressed(KeyCode::H) {
@@ -442,9 +481,11 @@ impl Application for App {
 
   fn draw(&self, ctx: &CtxRef) {
     let state = &self.settings.state.visualizer;
+    let track = self.get_track();
+
     clear_background(self.settings.state.bg_color.as_color());
 
-    let color = if matches!(self.state, TrackState::Playing) { 128 } else { 32 };
+    let color = if matches!(self.get_track_state(), TrackState::Playing) { 128 } else { 32 };
 
     let (x, y) = App::center(&self.bg_texture);
     draw_texture(self.bg_texture, x, y, Color::gray_scale(color));
@@ -452,7 +493,9 @@ impl Application for App {
     let (x, y) = App::bottom_left(&self.cover_texture);
     draw_texture(self.cover_texture, 70f32 + x, y - 150f32, Color::gray_scale(color + 96));
 
-    egui_draw_text(ctx, &self.track.title, 70f32 + x, y + 120f32, 48, Color::gray_scale(240));
+
+    self.fonts.draw_text(&track.title, 70f32 + x, y + 120f32, 48, Color::gray_scale(235));
+    // egui_draw_text(ctx, &self.track.title, 70f32 + x, y + 120f32, 48, Color::gray_scale(240));
     // draw_text_ex(&self.track.title, 70f32 + x, y + 175f32, TextParams {
     //   font_size: 48,
     //   font_scale: 1.0,

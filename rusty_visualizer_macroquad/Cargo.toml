@@ -7,6 +7,7 @@ edition = "2018"
 
 [dependencies]
 macroquad = { version = "^0.3", default-features = false } # Disable Audio
+macroquad-text = "0.1.1"
 egui-macroquad = "0.7" # I need to disable audio for this, but can't
 egui = "0.15"
 #egui = { git = "https://github.com/Ricky12Awesome/egui/", branch = "0.15.0-custom" }
@@ -15,6 +16,6 @@ serde = { version = "^1", features = ["derive"] }
 serde_json = "^1"
 reqwest = { version = "0.11.8", features = ["blocking"] }
 image = "0.23.14"
-spotify_info = "0.3"
+spotify_info = "0.5"
 tokio = { version = "1.15", features = ["full"] }
 lazy_static = "1.4.0"

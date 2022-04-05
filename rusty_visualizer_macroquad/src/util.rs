@@ -8,7 +8,7 @@ use crate::{NOTO_SANS, NOTO_SANS_JP};
 
 pub fn egui_draw_text(ctx: &CtxRef, text: impl ToString, x: f32, y: f32, _size: u32, color: Color) {
   lazy_static::lazy_static!(
-    static ref FONT: Fonts = Fonts::new(1.0, font_def(22f32, 24f32));
+    static ref FONT: Fonts = Fonts::new(1.0, font_def(22f32, 48f32));
   );
 
   let font = &FONT as &Fonts;
